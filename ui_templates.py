@@ -210,15 +210,7 @@ class TemplateCache:
 
 def render_css_variables(config: TemplateConfig, selector: str = ':root') -> str:
     """
-    Generate CSS custom properties from template configuration.
-
-    Output example:
-        :root {
-          --color-accent: #83ce00;
-          --color-bg: #1a1d21;
-          --font-primary: system-ui, ...;
-          --spacing-md: 16px;
-        }
+    Generate CSS custom properties + component classes from template configuration.
     """
     lines = [f"{selector} {{"]
 
@@ -230,7 +222,10 @@ def render_css_variables(config: TemplateConfig, selector: str = ':root') -> str
             'shadows': 'shadow',
             'transitions': 'transition',
         }
+        skip_keys = {'derived', 'components'}
         for key, value in data.items():
+            if key in skip_keys:
+                continue
             mapped_key = singular_map.get(key, key)
             full_key = f"{prefix}-{mapped_key}" if prefix else mapped_key
             if isinstance(value, dict):
@@ -242,13 +237,154 @@ def render_css_variables(config: TemplateConfig, selector: str = ':root') -> str
     if config.tokens:
         _flatten_dict(config.tokens)
 
+    # Generate derived rgba colors
+    derived = config.tokens.get('derived', {})
+    for key, value in derived.items():
+        lines.append(f"  --derived-{key}: {value};")
+
     # Add logo URL as CSS variable
     logo_url = config.get_logo_url()
     if logo_url:
         lines.append(f"  --asset-logo-url: url('{logo_url}');")
 
     lines.append("}")
+
+    lines.extend(_generate_component_css(config))
+
     return "\n".join(lines)
+
+
+def render_chart_js_colors(config: TemplateConfig) -> str:
+    """Generate a small JS snippet that reads CSS chart palette variables
+    into global window.CHART_COLORS for use by Chart.js configs."""
+    palette = config.tokens.get('chart_palette', {})
+    if not palette:
+        return ""
+    vars_js = ",\n        ".join(
+        f"{k}: getComputedStyle(document.documentElement).getPropertyValue('--chart_palette-{k}').trim()"
+        for k in palette.keys()
+    )
+    return (
+        "<script>\n"
+        "  (function() {\n"
+        "    var root = document.documentElement;\n"
+        "    window.CHART_COLORS = {\n"
+        "        " + vars_js + "\n"
+        "    };\n"
+        "  })();\n"
+        "</script>"
+    )
+
+
+def _generate_component_css(config: TemplateConfig) -> list:
+    """Generate CSS utility classes for common components."""
+    css_lines = []
+    components = config.tokens.get('components', {})
+
+    if not components:
+        return css_lines
+
+    if 'button-primary-bg' in components:
+        css_lines.extend([
+            ".btn-primary {",
+            f"  background: {components.get('button-primary-bg', 'var(--color-accent)')};",
+            f"  color: {components.get('button-primary-color', 'var(--color-accent-contrast)')};",
+            f"  border: none;",
+            f"  border-radius: {components.get('card-radius', 'var(--radius-md)')};",
+            f"  padding: 0.7rem 1rem;",
+            f"  font-family: inherit;",
+            f"  font-weight: 600;",
+            f"  cursor: pointer;",
+            f"  transition: all 0.15s;",
+            f"  -webkit-appearance: none;",
+            "}",
+            ".btn-primary:hover {",
+            f"  background: {components.get('button-primary-hover', 'var(--color-accent-hover)')};",
+            f"  transform: translateY(-1px);",
+            "}",
+        ])
+
+    if 'button-outline-bg' in components:
+        css_lines.extend([
+            ".btn-outline {",
+            f"  background: {components.get('button-outline-bg', 'transparent')};",
+            f"  color: {components.get('button-outline-color', 'var(--color-accent)')};",
+            f"  border: {components.get('button-outline-border', '1px solid var(--color-border)')};",
+            f"  border-radius: {components.get('card-radius', 'var(--radius-md)')};",
+            f"  padding: 0.7rem 1rem;",
+            f"  font-family: inherit;",
+            f"  font-weight: 600;",
+            f"  cursor: pointer;",
+            f"  transition: all 0.15s;",
+            f"  -webkit-appearance: none;",
+            "}",
+            ".btn-outline:hover {",
+            f"  background: {components.get('button-outline-hover-bg', 'var(--derived-accent-8)')};",
+            f"  transform: translateY(-1px);",
+            "}",
+        ])
+
+    if 'card-bg' in components:
+        css_lines.extend([
+            ".card {",
+            f"  background: {components.get('card-bg', 'var(--color-bg-surface)')};",
+            f"  border: {components.get('card-border', '1px solid var(--color-border)')};",
+            f"  border-radius: {components.get('card-radius', 'var(--radius-lg)')};",
+            f"  overflow: hidden;",
+            "}",
+        ])
+
+    # Input
+    if 'input-bg' in components:
+        css_lines.extend([
+            ".input, input[type=\"text\"], input[type=\"password\"], select, textarea {",
+            f"  width: 100%;",
+            f"  padding: 0.7rem 0.85rem;",
+            f"  background: {components.get('input-bg', 'var(--color-bg)')};",
+            f"  border: {components.get('input-border', '1px solid var(--color-border)')};",
+            f"  border-radius: {components.get('card-radius', 'var(--radius-md)')};",
+            f"  color: var(--color-text-primary);",
+            f"  font-size: 0.95rem;",
+            f"  font-family: inherit;",
+            f"  outline: none;",
+            f"  transition: border-color 0.2s, box-shadow 0.2s;",
+            f"  -webkit-appearance: none;",
+            "}",
+            ".input:focus, input:focus, select:focus, textarea:focus {",
+            f"  border-color: {components.get('input-focus-border', 'var(--color-accent)')};",
+            f"  box-shadow: 0 0 0 3px var(--derived-accent-glow);",
+            "}",
+        ])
+
+    # Modal
+    if 'modal-overlay' in components:
+        css_lines.extend([
+            ".modal-overlay {",
+            f"  background: {components.get('modal-overlay', 'rgba(0,0,0,0.7)')};",
+            "}",
+        ])
+
+    # Table
+    if 'table-header-bg' in components:
+        css_lines.extend([
+            "th, .table-header {",
+            f"  background: {components.get('table-header-bg', 'var(--color-bg-elevated)')};",
+            "}",
+            "tr:hover, .table-row:hover {",
+            f"  background: {components.get('table-row-hover', 'var(--derived-accent-5)')};",
+            "}",
+        ])
+
+    # KPI indicators
+    if 'kpi-positive' in components:
+        css_lines.extend([
+            ".kpi-positive, .text-success { color: var(--color-success); }",
+            ".kpi-negative, .text-error { color: var(--color-error); }",
+            ".text-warn { color: var(--color-warn); }",
+            ".text-info { color: var(--color-info); }",
+        ])
+
+    return css_lines
 
 
 # ──────────────────────────────────────────────
@@ -264,25 +400,102 @@ DEFAULT_TEMPLATES = {
         tokens={
             'colors': {
                 'accent': '#83ce00',
-                'bg': '#1a1d21',
+                'accent-dim': '#6a9955',
+                'accent-hover': '#9be01a',
+                'accent-contrast': '#1a1d21',
+                'bg-primary': '#1a1d21',
                 'bg-surface': '#21252a',
+                'bg-elevated': '#2a2f35',
                 'border': '#2a2f35',
                 'text-primary': '#c4c9ce',
                 'text-secondary': '#6a7078',
+                'text-muted': '#4a5058',
                 'warn': '#d29922',
                 'error': '#e0555a',
                 'success': '#6a9955',
                 'info': '#539bf5',
             },
-            'fonts': {
-                'primary': 'system-ui, -apple-system, sans-serif',
-                'size-base': '14px'
+            'derived': {
+                'accent-5': 'rgba(131,206,0,0.05)',
+                'accent-8': 'rgba(131,206,0,0.08)',
+                'accent-10': 'rgba(131,206,0,0.10)',
+                'accent-12': 'rgba(131,206,0,0.12)',
+                'accent-15': 'rgba(131,206,0,0.15)',
+                'accent-25': 'rgba(131,206,0,0.25)',
+                'accent-50': 'rgba(131,206,0,0.50)',
+                'accent-glow': 'rgba(131,206,0,0.2)',
+                'success-8': 'rgba(106,153,85,0.08)',
+                'success-20': 'rgba(106,153,85,0.20)',
+                'success-40': 'rgba(106,153,85,0.40)',
+                'error-8': 'rgba(224,85,90,0.08)',
+                'error-20': 'rgba(224,85,90,0.20)',
+                'white-3': 'rgba(255,255,255,0.03)',
+                'white-10': 'rgba(255,255,255,0.10)',
+                'bg-backdrop': 'rgba(26,29,33,0.85)',
             },
-            'spacing': {'md': '16px', 'lg': '24px'},
-            'radii': {'md': '6px'},
-            'shadows': {'md': '0 2px 8px rgba(0,0,0,0.3)'}
+            'fonts': {
+                'primary': "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                'monospace': "ui-monospace, SFMono-Regular, 'SF Mono', Consolas, monospace",
+                'size-base': '14px',
+                'size-sm': '12px',
+                'size-md': '14px',
+                'size-lg': '16px',
+                'size-xl': '20px',
+                'size-h1': '24px',
+                'size-h2': '20px',
+                'size-h3': '16px',
+                'weight-normal': '400',
+                'weight-medium': '500',
+                'weight-bold': '600',
+                'line-height': '1.5',
+                'line-height-tight': '1.25'
+            },
+            'spacing': {
+                'xs': '4px',
+                'sm': '8px',
+                'md': '16px',
+                'lg': '24px',
+                'xl': '32px',
+                'xxl': '48px',
+                'section': '24px',
+                'container-max': '1400px',
+                'container-padding': '24px'
+            },
+            'radii': {
+                'sm': '4px',
+                'md': '8px',
+                'lg': '12px',
+                'pill': '9999px'
+            },
+            'shadows': {
+                'sm': '0 1px 2px rgba(0,0,0,0.2)',
+                'md': '0 4px 12px rgba(0,0,0,0.3)',
+                'lg': '0 8px 24px rgba(0,0,0,0.4)',
+                'glow-accent': '0 0 12px rgba(131, 206, 0, 0.2)'
+            },
+            'transitions': {
+                'fast': '0.1s ease',
+                'normal': '0.2s ease',
+                'slow': '0.3s ease'
+            },
+            'chart_palette': {
+                'primary': '#83ce00',
+                'secondary': '#539bf5',
+                'success': '#6a9955',
+                'danger': '#e0555a',
+                'neutral': '#6a7078',
+                'grid': 'rgba(128,128,128,0.1)',
+                'extra1': '#c9a227',
+                'extra2': '#a56cc7',
+                'extra3': '#4fc3f7',
+                'extra4': '#ff9800'
+            }
         },
-        assets={'logo': {'url': 'https://agentworx.agency/assets/images/agentworx-logo-white.png'}},
+        assets={
+            'logo': {'url': 'https://agentworx.agency/assets/images/agentworx-logo-white.png'},
+            'avatar': {'url': 'https://r0gr.de/roger-avatar.jpg'},
+            'favicon': {'url': '/favicon.ico'}
+        },
         menu={'style': 'horizontal', 'position': 'top'}
     ),
     'r0gr': TemplateConfig(
@@ -293,25 +506,102 @@ DEFAULT_TEMPLATES = {
         tokens={
             'colors': {
                 'accent': '#f09a3a',
-                'bg': '#0f0a08',
+                'accent-dim': '#c07a2a',
+                'accent-hover': '#ffaa4a',
+                'accent-contrast': '#0f0a08',
+                'bg-primary': '#0f0a08',
                 'bg-surface': '#1a1410',
+                'bg-elevated': '#2a1f15',
                 'border': '#2a1f15',
                 'text-primary': '#c4c9ce',
                 'text-secondary': '#8a7f70',
+                'text-muted': '#5a5048',
                 'warn': '#e0a030',
                 'error': '#ff5544',
                 'success': '#00cc77',
                 'info': '#5aafdf',
             },
-            'fonts': {
-                'primary': 'system-ui, -apple-system, sans-serif',
-                'size-base': '14px'
+            'derived': {
+                'accent-5': 'rgba(240,154,58,0.05)',
+                'accent-8': 'rgba(240,154,58,0.08)',
+                'accent-10': 'rgba(240,154,58,0.10)',
+                'accent-12': 'rgba(240,154,58,0.12)',
+                'accent-15': 'rgba(240,154,58,0.15)',
+                'accent-25': 'rgba(240,154,58,0.25)',
+                'accent-50': 'rgba(240,154,58,0.50)',
+                'accent-glow': 'rgba(240,154,58,0.2)',
+                'success-8': 'rgba(0,204,119,0.08)',
+                'success-20': 'rgba(0,204,119,0.20)',
+                'success-40': 'rgba(0,204,119,0.40)',
+                'error-8': 'rgba(255,85,68,0.08)',
+                'error-20': 'rgba(255,85,68,0.20)',
+                'white-3': 'rgba(255,255,255,0.03)',
+                'white-10': 'rgba(255,255,255,0.10)',
+                'bg-backdrop': 'rgba(15,10,8,0.85)',
             },
-            'spacing': {'md': '16px', 'lg': '24px'},
-            'radii': {'md': '6px'},
-            'shadows': {'md': '0 2px 8px rgba(0,0,0,0.4)'}
+            'fonts': {
+                'primary': "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                'monospace': "ui-monospace, SFMono-Regular, 'SF Mono', Consolas, monospace",
+                'size-base': '14px',
+                'size-sm': '12px',
+                'size-md': '14px',
+                'size-lg': '16px',
+                'size-xl': '20px',
+                'size-h1': '24px',
+                'size-h2': '20px',
+                'size-h3': '16px',
+                'weight-normal': '400',
+                'weight-medium': '500',
+                'weight-bold': '600',
+                'line-height': '1.5',
+                'line-height-tight': '1.25'
+            },
+            'spacing': {
+                'xs': '4px',
+                'sm': '8px',
+                'md': '16px',
+                'lg': '24px',
+                'xl': '32px',
+                'xxl': '48px',
+                'section': '24px',
+                'container-max': '1400px',
+                'container-padding': '24px'
+            },
+            'radii': {
+                'sm': '4px',
+                'md': '8px',
+                'lg': '12px',
+                'pill': '9999px'
+            },
+            'shadows': {
+                'sm': '0 1px 2px rgba(0,0,0,0.3)',
+                'md': '0 4px 12px rgba(0,0,0,0.4)',
+                'lg': '0 8px 24px rgba(0,0,0,0.5)',
+                'glow-accent': '0 0 12px rgba(240, 154, 58, 0.2)'
+            },
+            'transitions': {
+                'fast': '0.1s ease',
+                'normal': '0.2s ease',
+                'slow': '0.3s ease'
+            },
+            'chart_palette': {
+                'primary': '#f09a3a',
+                'secondary': '#5aafdf',
+                'success': '#00cc77',
+                'danger': '#ff5544',
+                'neutral': '#8a7f70',
+                'grid': 'rgba(128,128,128,0.1)',
+                'extra1': '#ddaa33',
+                'extra2': '#aa66cc',
+                'extra3': '#33aaff',
+                'extra4': '#ffaa33'
+            }
         },
-        assets={'logo': {'url': None}},
+        assets={
+            'logo': {'url': None},
+            'avatar': {'url': 'https://r0gr.de/roger-avatar.jpg'},
+            'favicon': {'url': '/favicon.ico'}
+        },
         menu={'style': 'horizontal', 'position': 'top'}
     )
 }
