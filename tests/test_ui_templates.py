@@ -1,0 +1,369 @@
+"""
+TDD Tests for shared-ui/ui_templates.py
+
+Run: pytest shared-ui/tests/test_ui_templates.py -v
+"""
+import pytest
+import sys
+import os
+
+# Add shared-ui to path
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+
+from ui_templates import (
+    TemplateConfig,
+    TokenValidator,
+    TemplateManager,
+    TemplateCache,
+    render_css_variables,
+    validate_css_variables,
+    get_fallback_template,
+    ALLOWED_COLOR_PATTERN,
+    ALLOWED_SIZE_PATTERN,
+)
+
+
+# ──────────────────────────────────────────────
+# Tests for TemplateConfig dataclass
+# ──────────────────────────────────────────────
+
+class TestTemplateConfig:
+    def test_create_template_config(self):
+        """TemplateConfig should store template metadata and tokens."""
+        config = TemplateConfig(
+            template_key='agentworx',
+            version=1,
+            name='Agentworx Standard',
+            family='agentworx',
+            tokens={
+                'colors': {'accent': '#83ce00', 'bg': '#1a1d21'},
+                'fonts': {'primary': 'system-ui'},
+                'spacing': {'md': '16px'},
+            },
+            assets={'logo': {'url': 'https://example.com/logo.png'}},
+            menu={'style': 'horizontal'},
+        )
+        assert config.template_key == 'agentworx'
+        assert config.version == 1
+        assert config.name == 'Agentworx Standard'
+        assert config.family == 'agentworx'
+
+    def test_get_color_existing(self):
+        """Should return color value for existing key."""
+        config = TemplateConfig(
+            template_key='test', version=1, name='Test', family='test',
+            tokens={'colors': {'accent': '#83ce00', 'bg': '#1a1d21'}}
+        )
+        assert config.get_color('accent') == '#83ce00'
+        assert config.get_color('bg') == '#1a1d21'
+
+    def test_get_color_fallback(self):
+        """Should return default/fallback for missing color."""
+        config = TemplateConfig(
+            template_key='test', version=1, name='Test', family='test',
+            tokens={'colors': {}}
+        )
+        assert config.get_color('missing') == ''  # Empty string as default
+
+    def test_get_font(self):
+        """Should return font value."""
+        config = TemplateConfig(
+            template_key='test', version=1, name='Test', family='test',
+            tokens={'fonts': {'primary': 'system-ui, sans-serif'}}
+        )
+        assert config.get_font() == 'system-ui, sans-serif'
+
+    def test_get_spacing(self):
+        """Should return spacing value."""
+        config = TemplateConfig(
+            template_key='test', version=1, name='Test', family='test',
+            tokens={'spacing': {'md': '16px', 'lg': '24px'}}
+        )
+        assert config.get_spacing('md') == '16px'
+        assert config.get_spacing('lg') == '24px'
+
+    def test_get_logo_url(self):
+        """Should return logo URL from assets."""
+        config = TemplateConfig(
+            template_key='test', version=1, name='Test', family='test',
+            assets={'logo': {'url': 'https://example.com/logo.png'}}
+        )
+        assert config.get_logo_url() == 'https://example.com/logo.png'
+
+    def test_get_logo_url_missing(self):
+        """Should return None if logo not configured."""
+        config = TemplateConfig(
+            template_key='test', version=1, name='Test', family='test',
+            assets={}
+        )
+        assert config.get_logo_url() is None
+
+
+# ──────────────────────────────────────────────
+# Tests for validation
+# ──────────────────────────────────────────────
+
+class TestValidation:
+    def test_validate_hex_color(self):
+        """Should accept valid hex colors."""
+        assert ALLOWED_COLOR_PATTERN.match('#83ce00')
+        assert ALLOWED_COLOR_PATTERN.match('#1a1d21')
+        assert ALLOWED_COLOR_PATTERN.match('#fff')
+        assert ALLOWED_COLOR_PATTERN.match('#FFFFFF')
+
+    def test_validate_invalid_color(self):
+        """Should reject invalid color values."""
+        assert not ALLOWED_COLOR_PATTERN.match('javascript:alert(1)')
+        assert not ALLOWED_COLOR_PATTERN.match('</style>')
+        assert not ALLOWED_COLOR_PATTERN.match('red; display:none')
+
+    def test_validate_spacing(self):
+        """Should accept valid spacing values."""
+        assert ALLOWED_SIZE_PATTERN.match('16px')
+        assert ALLOWED_SIZE_PATTERN.match('1.5rem')
+        assert ALLOWED_SIZE_PATTERN.match('100%')
+        assert ALLOWED_SIZE_PATTERN.match('10vh')
+
+    def test_validate_invalid_spacing(self):
+        """Should reject invalid spacing."""
+        assert not ALLOWED_SIZE_PATTERN.match('16')
+        assert not ALLOWED_SIZE_PATTERN.match('abc')
+
+    def test_validate_css_variables_valid(self):
+        """Should return empty errors for valid tokens."""
+        tokens = {
+            'colors': {'accent': '#83ce00', 'bg': '#1a1d21'},
+            'fonts': {'family': 'system-ui, sans-serif'},
+            'spacing': {'md': '16px'},
+            'radius': {'md': '6px'},
+            'shadow': {'md': '0 2px 8px rgba(0,0,0,0.3)'},
+            'z-index': {'modal': '300'},
+        }
+        errors = validate_css_variables(tokens)
+        assert errors == []
+
+    def test_validate_css_variables_invalid_color(self):
+        """Should detect invalid color values."""
+        tokens = {
+            'colors': {'accent': 'javascript:alert(1)', 'bg': '#1a1d21'},
+        }
+        errors = validate_css_variables(tokens)
+        assert len(errors) >= 1
+        assert any('accent' in e for e in errors)
+
+    def test_validate_css_variables_invalid_font(self):
+        """Should detect invalid font values."""
+        tokens = {
+            'fonts': {'family': '<script>alert(1)</script>'},
+        }
+        errors = validate_css_variables(tokens)
+        assert len(errors) >= 1
+
+    def test_validate_css_variables_invalid_spacing(self):
+        """Should detect invalid spacing values."""
+        tokens = {
+            'spacing': {'md': 'abc'},
+        }
+        errors = validate_css_variables(tokens)
+        assert len(errors) >= 1
+
+
+# ──────────────────────────────────────────────
+# Tests for CSS variable rendering
+# ──────────────────────────────────────────────
+
+class TestRenderCSSVariables:
+    def test_render_basic_colors(self):
+        """Should generate :root block with color variables."""
+        config = TemplateConfig(
+            template_key='test', version=1, name='Test', family='test',
+            tokens={
+                'colors': {'accent': '#83ce00', 'bg': '#1a1d21'},
+            }
+        )
+        css = render_css_variables(config)
+        assert ':root {' in css
+        assert '--color-accent: #83ce00;' in css
+        assert '--color-bg: #1a1d21;' in css
+        assert '}' in css
+
+    def test_render_nested_tokens(self):
+        """Should flatten nested token structure."""
+        config = TemplateConfig(
+            template_key='test', version=1, name='Test', family='test',
+            tokens={
+                'colors': {'accent': '#83ce00'},
+                'fonts': {'primary': 'system-ui'},
+                'spacing': {'md': '16px'},
+            }
+        )
+        css = render_css_variables(config)
+        assert '--color-accent: #83ce00;' in css
+        assert '--font-primary: system-ui;' in css
+        assert '--spacing-md: 16px;' in css
+
+    def test_render_with_logo(self):
+        """Should include logo URL as CSS variable."""
+        config = TemplateConfig(
+            template_key='test', version=1, name='Test', family='test',
+            tokens={},
+            assets={'logo': {'url': 'https://example.com/logo.png'}}
+        )
+        css = render_css_variables(config)
+        assert '--asset-logo-url' in css
+
+
+# ──────────────────────────────────────────────
+# Tests for TemplateCache
+# ──────────────────────────────────────────────
+
+class TestTemplateCache:
+    def test_cache_store_and_retrieve(self):
+        """Should store and retrieve template from cache."""
+        cache = TemplateCache(ttl_seconds=300)
+        config = TemplateConfig(
+            template_key='test', version=1, name='Test', family='test'
+        )
+        cache.set('audit-viewer:production', config)
+        retrieved = cache.get('audit-viewer:production')
+        assert retrieved is not None
+        assert retrieved.template_key == 'test'
+
+    def test_cache_miss(self):
+        """Should return None for uncached key."""
+        cache = TemplateCache(ttl_seconds=300)
+        result = cache.get('unknown:production')
+        assert result is None
+
+    def test_cache_expiry(self):
+        """Should expire entries after TTL."""
+        cache = TemplateCache(ttl_seconds=0)  # Immediate expiry
+        config = TemplateConfig(
+            template_key='test', version=1, name='Test', family='test'
+        )
+        cache.set('test:production', config)
+        # Should expire immediately
+        retrieved = cache.get('test:production')
+        assert retrieved is None
+
+    def test_cache_invalidate_single(self):
+        """Should invalidate single cache entry."""
+        cache = TemplateCache(ttl_seconds=300)
+        config = TemplateConfig(
+            template_key='test', version=1, name='Test', family='test'
+        )
+        cache.set('app1:production', config)
+        cache.set('app2:production', config)
+        cache.invalidate('app1')
+        assert cache.get('app1:production') is None
+        assert cache.get('app2:production') is not None
+
+    def test_cache_invalidate_all(self):
+        """Should invalidate all cache entries."""
+        cache = TemplateCache(ttl_seconds=300)
+        config = TemplateConfig(
+            template_key='test', version=1, name='Test', family='test'
+        )
+        cache.set('app1:production', config)
+        cache.set('app2:production', config)
+        cache.invalidate()
+        assert cache.get('app1:production') is None
+        assert cache.get('app2:production') is None
+
+
+# ──────────────────────────────────────────────
+# Tests for fallback templates
+# ──────────────────────────────────────────────
+
+class TestFallbackTemplates:
+    def test_fallback_agentworx(self):
+        """Should return agentworx fallback template."""
+        template = get_fallback_template('agentworx')
+        assert template.template_key == 'agentworx'
+        assert template.family == 'agentworx'
+        assert template.tokens['colors']['accent'] == '#83ce00'
+
+    def test_fallback_r0gr(self):
+        """Should return r0gr fallback template."""
+        template = get_fallback_template('r0gr')
+        assert template.template_key == 'r0gr'
+        assert template.family == 'r0gr'
+        assert template.tokens['colors']['accent'] == '#f09a3a'
+
+    def test_fallback_unknown_defaults_to_agentworx(self):
+        """Should default to agentworx for unknown family."""
+        template = get_fallback_template('unknown')
+        assert template.template_key == 'agentworx'
+
+
+# ──────────────────────────────────────────────
+# Tests for TemplateManager (with mocked DB)
+# ──────────────────────────────────────────────
+
+class TestTemplateManager:
+    def test_manager_initialization(self):
+        """Should initialize with db_config and cache_ttl."""
+        db_config = {
+            'host': 'localhost',
+            'port': '5432',
+            'dbname': 'r0gr',
+            'user': 'r0gr',
+        }
+        manager = TemplateManager(db_config, cache_ttl=300)
+        assert manager.db_config == db_config
+        assert manager.cache_ttl == 300
+
+    def test_render_menu_css(self):
+        """Should generate menu CSS from config."""
+        db_config = {'host': 'localhost', 'port': '5432', 'dbname': 'r0gr', 'user': 'r0gr'}
+        manager = TemplateManager(db_config)
+        config = TemplateConfig(
+            template_key='test', version=1, name='Test', family='test',
+            menu={'style': 'horizontal', 'height': '56px', 'background': '#21252a'}
+        )
+        css = manager.render_menu_css(config)
+        assert '.site-nav {' in css
+        assert 'height: 56px;' in css
+
+
+# ──────────────────────────────────────────────
+# Edge case tests
+# ──────────────────────────────────────────────
+
+class TestEdgeCases:
+    def test_empty_tokens(self):
+        """Should handle empty tokens gracefully."""
+        config = TemplateConfig(
+            template_key='test', version=1, name='Test', family='test',
+            tokens={}
+        )
+        css = render_css_variables(config)
+        assert ':root {' in css
+        assert '}' in css
+
+    def test_special_characters_in_values(self):
+        """Should handle CSS values with commas and spaces."""
+        config = TemplateConfig(
+            template_key='test', version=1, name='Test', family='test',
+            tokens={
+                'fonts': {
+                    'primary': '-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif'
+                }
+            }
+        )
+        css = render_css_variables(config)
+        assert '--font-primary: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif;' in css
+
+    def test_rgba_colors(self):
+        """Should handle rgba color values."""
+        config = TemplateConfig(
+            template_key='test', version=1, name='Test', family='test',
+            tokens={
+                'colors': {
+                    'overlay': 'rgba(0, 0, 0, 0.7)',
+                    'focus': 'rgba(131, 206, 0, 0.3)',
+                }
+            }
+        )
+        css = render_css_variables(config)
+        assert '--color-overlay: rgba(0, 0, 0, 0.7);' in css
