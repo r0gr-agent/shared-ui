@@ -397,6 +397,38 @@ def _fetch_template_from_db(template_key: str, version: int) -> Optional[Templat
             conn.close()
 
 
+def _fetch_template_by_name_from_db(name: str) -> Optional[TemplateConfig]:
+    """Fetch the latest version of a template by its human-readable name."""
+    conn = None
+    try:
+        conn = _get_db_connection()
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT template_key, version, name, family,
+                       tokens, assets, menu, metadata
+                FROM ui.templates
+                WHERE name = %s
+                ORDER BY version DESC
+                LIMIT 1
+            """, (name,))
+            row = cur.fetchone()
+            if not row:
+                return None
+            return TemplateConfig(
+                template_key=row['template_key'],
+                version=row['version'],
+                name=row['name'],
+                family=row['family'],
+                tokens=row['tokens'] or {},
+                assets=row['assets'] or {},
+                menu=row['menu'] or {},
+                metadata=row['metadata'] or {}
+            )
+    finally:
+        if conn:
+            conn.close()
+
+
 def _fetch_assignment_from_db(app_key: str, environment: str = 'production') -> Optional[Dict[str, Any]]:
     """Fetch the active template assignment for an app."""
     conn = None
@@ -475,6 +507,25 @@ class TemplateManager:
                 return cached
 
         template = _fetch_template_from_db(template_key, version)
+        if template and use_cache:
+            self._cache.set(cache_key, template)
+
+        return template
+
+    def get_template_by_name(
+        self,
+        name: str,
+        use_cache: bool = True
+    ) -> Optional[TemplateConfig]:
+        """Get the latest version of a template by its human-readable name."""
+        cache_key = f"template_name:{name}"
+
+        if use_cache:
+            cached = self._cache.get(cache_key)
+            if cached:
+                return cached
+
+        template = _fetch_template_by_name_from_db(name)
         if template and use_cache:
             self._cache.set(cache_key, template)
 
