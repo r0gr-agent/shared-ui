@@ -92,6 +92,20 @@ class TemplateConfig:
         logo = self.assets.get('logo', {})
         return logo.get('url')
 
+    def get_component(self, key: str, fallback: str = '') -> str:
+        components = self.tokens.get('components', {})
+        return components.get(key, fallback)
+
+    def get_page_title(self) -> str:
+        return self.metadata.get('page_title', self.name)
+
+    def get_favicon_url(self) -> Optional[str]:
+        favicon = self.assets.get('favicon', {})
+        return favicon.get('url') if isinstance(favicon, dict) else favicon
+
+    def get_brand_name(self) -> str:
+        return self.metadata.get('brand_name', self.name)
+
 
 # ──────────────────────────────────────────────
 # Validation
@@ -249,9 +263,80 @@ def render_css_variables(config: TemplateConfig, selector: str = ':root') -> str
 
     lines.append("}")
 
-    lines.extend(_generate_component_css(config))
-
     return "\n".join(lines)
+
+
+def render_component_css(config: TemplateConfig) -> str:
+    return "\n".join(_generate_component_css(config))
+
+
+def render_page_css(config: TemplateConfig) -> str:
+    fonts = config.tokens.get('fonts', {})
+    spacing = config.tokens.get('spacing', {})
+    layout = config.tokens.get('layout', {})
+
+    def _color(key: str, fallback: str) -> str:
+        return config.get_color(key, fallback)
+
+    def _font_size(key: str, fallback: str) -> str:
+        return fonts.get(key, fallback)
+
+    def _spacing(key: str, fallback: str) -> str:
+        return spacing.get(key, fallback)
+
+    content_max_width = layout.get('content-max-width', _spacing('container-max', '1400px'))
+    content_padding = layout.get('content-padding', _spacing('container-padding', '24px'))
+
+    return "\n".join([
+        "body {",
+        f"  background: {_color('bg-primary', 'var(--color-bg-primary)')};",
+        f"  color: {_color('text-primary', 'var(--color-text-primary)')};",
+        f"  font-family: {config.get_font()};",
+        f"  min-height: 100vh;",
+        f"  line-height: {fonts.get('line-height', '1.5')};",
+        "}",
+        "h1, h2, h3 {",
+        f"  color: {_color('text-primary', 'var(--color-text-primary)')};",
+        f"  margin: 0 0 {_spacing('md', '16px')};",
+        f"  letter-spacing: 0.01em;",
+        "}",
+        "h1 {",
+        f"  font-size: {_font_size('size-h1', '2rem')};",
+        f"  font-weight: {fonts.get('weight-bold', '700')};",
+        "}",
+        "h2 {",
+        f"  font-size: {_font_size('size-h2', '1.5rem')};",
+        f"  font-weight: {fonts.get('weight-bold', '700')};",
+        "}",
+        "h3 {",
+        f"  font-size: {_font_size('size-h3', '1.125rem')};",
+        f"  font-weight: {fonts.get('weight-medium', '600')};",
+        "}",
+        "a {",
+        f"  color: {_color('accent', 'var(--color-accent)')};",
+        "  text-decoration: none;",
+        "  transition: color 0.2s ease, text-decoration-color 0.2s ease;",
+        "}",
+        "a:hover {",
+        "  text-decoration: underline;",
+        f"  color: {_color('accent-hover', 'var(--color-accent-hover)')};",
+        "}",
+        ".container, .site-content {",
+        f"  max-width: {content_max_width};",
+        "  margin: 0 auto;",
+        f"  padding: 0 {content_padding};",
+        "}",
+        ".app {",
+        f"  max-width: {content_max_width};",
+        "  margin: 0 auto;",
+        f"  padding: {content_padding};",
+        "}",
+        ".page-header {",
+        f"  margin-bottom: {_spacing('lg', '24px')};",
+        f"  padding-bottom: {_spacing('sm', '8px')};",
+        f"  border-bottom: 1px solid {_color('border', 'var(--color-border)')};",
+        "}",
+    ])
 
 
 def render_chart_js_colors(config: TemplateConfig) -> str:
@@ -281,108 +366,250 @@ def _generate_component_css(config: TemplateConfig) -> list:
     css_lines = []
     components = config.tokens.get('components', {})
 
-    if not components:
-        return css_lines
+    def _component(key: str, fallback: str) -> str:
+        return components.get(key, fallback)
 
-    if 'button-primary-bg' in components:
+    def _base_button(selector: str, bg: str, color: str, hover_selector: str, hover_bg: str, hover_color: Optional[str] = None, border: str = 'none'):
         css_lines.extend([
-            ".btn-primary {",
-            f"  background: {components.get('button-primary-bg', 'var(--color-accent)')};",
-            f"  color: {components.get('button-primary-color', 'var(--color-accent-contrast)')};",
-            f"  border: none;",
-            f"  border-radius: {components.get('card-radius', 'var(--radius-md)')};",
+            f"{selector} {{",
+            f"  background: {bg};",
+            f"  color: {color};",
+            f"  border: {border};",
+            f"  border-radius: {_component('card-radius', 'var(--radius-md)')};",
             f"  padding: 0.7rem 1rem;",
             f"  font-family: inherit;",
             f"  font-weight: 600;",
             f"  cursor: pointer;",
-            f"  transition: all 0.15s;",
+            f"  transition: all 0.15s ease;",
             f"  -webkit-appearance: none;",
             "}",
-            ".btn-primary:hover {",
-            f"  background: {components.get('button-primary-hover', 'var(--color-accent-hover)')};",
-            f"  transform: translateY(-1px);",
+            f"{hover_selector} {{",
+            f"  background: {hover_bg};",
+        ])
+        if hover_color is not None:
+            css_lines.append(f"  color: {hover_color};")
+        css_lines.extend([
+            "  transform: translateY(-1px);",
             "}",
         ])
 
-    if 'button-outline-bg' in components:
-        css_lines.extend([
-            ".btn-outline {",
-            f"  background: {components.get('button-outline-bg', 'transparent')};",
-            f"  color: {components.get('button-outline-color', 'var(--color-accent)')};",
-            f"  border: {components.get('button-outline-border', '1px solid var(--color-border)')};",
-            f"  border-radius: {components.get('card-radius', 'var(--radius-md)')};",
-            f"  padding: 0.7rem 1rem;",
-            f"  font-family: inherit;",
-            f"  font-weight: 600;",
-            f"  cursor: pointer;",
-            f"  transition: all 0.15s;",
-            f"  -webkit-appearance: none;",
-            "}",
-            ".btn-outline:hover {",
-            f"  background: {components.get('button-outline-hover-bg', 'var(--derived-accent-8)')};",
-            f"  transform: translateY(-1px);",
-            "}",
-        ])
+    _base_button(
+        '.btn-primary',
+        _component('button-primary-bg', 'var(--color-accent)'),
+        _component('button-primary-color', 'var(--color-accent-contrast)'),
+        '.btn-primary:hover',
+        _component('button-primary-hover', 'var(--color-accent-hover)'),
+    )
 
-    if 'card-bg' in components:
-        css_lines.extend([
-            ".card {",
-            f"  background: {components.get('card-bg', 'var(--color-bg-surface)')};",
-            f"  border: {components.get('card-border', '1px solid var(--color-border)')};",
-            f"  border-radius: {components.get('card-radius', 'var(--radius-lg)')};",
-            f"  overflow: hidden;",
-            "}",
-        ])
+    _base_button(
+        '.btn-secondary',
+        _component('button-secondary-bg', 'transparent'),
+        _component('button-secondary-color', 'var(--color-text-primary)'),
+        '.btn-secondary:hover',
+        _component('button-secondary-hover-bg', 'var(--color-bg-elevated)'),
+        border=_component('button-secondary-border', '1px solid var(--color-border)'),
+    )
 
-    # Input
-    if 'input-bg' in components:
-        css_lines.extend([
-            ".input, input[type=\"text\"], input[type=\"password\"], select, textarea {",
-            f"  width: 100%;",
-            f"  padding: 0.7rem 0.85rem;",
-            f"  background: {components.get('input-bg', 'var(--color-bg)')};",
-            f"  border: {components.get('input-border', '1px solid var(--color-border)')};",
-            f"  border-radius: {components.get('card-radius', 'var(--radius-md)')};",
-            f"  color: var(--color-text-primary);",
-            f"  font-size: 0.95rem;",
-            f"  font-family: inherit;",
-            f"  outline: none;",
-            f"  transition: border-color 0.2s, box-shadow 0.2s;",
-            f"  -webkit-appearance: none;",
-            "}",
-            ".input:focus, input:focus, select:focus, textarea:focus {",
-            f"  border-color: {components.get('input-focus-border', 'var(--color-accent)')};",
-            f"  box-shadow: 0 0 0 3px var(--derived-accent-glow);",
-            "}",
-        ])
+    _base_button(
+        '.btn-danger',
+        _component('button-danger-bg', 'var(--color-error)'),
+        _component('button-danger-color', '#ffffff'),
+        '.btn-danger:hover',
+        _component('button-danger-hover', 'rgba(224, 85, 90, 0.9)'),
+    )
 
-    # Modal
-    if 'modal-overlay' in components:
-        css_lines.extend([
-            ".modal-overlay {",
-            f"  background: {components.get('modal-overlay', 'rgba(0,0,0,0.7)')};",
-            "}",
-        ])
+    css_lines.extend([
+        ".btn-ghost {",
+        f"  background: {_component('button-ghost-bg', 'transparent')};",
+        f"  color: {_component('button-ghost-color', 'var(--color-accent)')};",
+        f"  border: none;",
+        f"  border-radius: {_component('card-radius', 'var(--radius-md)')};",
+        f"  padding: 0.7rem 1rem;",
+        f"  font-family: inherit;",
+        f"  font-weight: 600;",
+        f"  cursor: pointer;",
+        f"  transition: all 0.15s ease;",
+        f"  -webkit-appearance: none;",
+        "}",
+        ".btn-ghost:hover {",
+        f"  color: {_component('button-ghost-hover-color', 'var(--color-accent-hover)')};",
+        f"  transform: translateY(-1px);",
+        "}",
+    ])
 
-    # Table
-    if 'table-header-bg' in components:
-        css_lines.extend([
-            "th, .table-header {",
-            f"  background: {components.get('table-header-bg', 'var(--color-bg-elevated)')};",
-            "}",
-            "tr:hover, .table-row:hover {",
-            f"  background: {components.get('table-row-hover', 'var(--derived-accent-5)')};",
-            "}",
-        ])
-
-    # KPI indicators
-    if 'kpi-positive' in components:
-        css_lines.extend([
-            ".kpi-positive, .text-success { color: var(--color-success); }",
-            ".kpi-negative, .text-error { color: var(--color-error); }",
-            ".text-warn { color: var(--color-warn); }",
-            ".text-info { color: var(--color-info); }",
-        ])
+    css_lines.extend([
+        ".btn-sm {",
+        f"  padding: 0.45rem 0.7rem;",
+        f"  font-size: 0.875rem;",
+        f"  border-radius: {_component('card-radius', 'var(--radius-md)')};",
+        "}",
+        ".card {",
+        f"  background: {_component('card-bg', 'var(--color-bg-surface)')};",
+        f"  border: {_component('card-border', '1px solid var(--color-border)')};",
+        f"  border-radius: {_component('card-radius', 'var(--radius-lg)')};",
+        f"  padding: {_component('card-padding', '1rem')};",
+        f"  overflow: hidden;",
+        "}",
+        ".card-header {",
+        f"  padding: 0 0 {_component('card-padding', '1rem')};",
+        f"  margin-bottom: {_component('card-padding', '1rem')};",
+        f"  border-bottom: 1px solid {_component('card-border', 'var(--color-border)')};",
+        "}",
+        ".card-body {",
+        f"  padding: 0;",
+        "}",
+        ".card-footer {",
+        f"  padding: {_component('card-padding', '1rem')} 0 0;",
+        f"  margin-top: {_component('card-padding', '1rem')};",
+        f"  border-top: 1px solid {_component('card-border', 'var(--color-border)')};",
+        "}",
+        ".input, input[type=\"text\"], input[type=\"password\"], select, textarea {",
+        f"  width: 100%;",
+        f"  padding: 0.7rem 0.85rem;",
+        f"  background: {_component('input-bg', 'var(--color-bg-primary)')};",
+        f"  border: {_component('input-border', '1px solid var(--color-border)')};",
+        f"  border-radius: {_component('card-radius', 'var(--radius-md)')};",
+        f"  color: var(--color-text-primary);",
+        f"  font-size: 0.95rem;",
+        f"  font-family: inherit;",
+        f"  outline: none;",
+        f"  transition: border-color 0.2s, box-shadow 0.2s;",
+        f"  -webkit-appearance: none;",
+        "}",
+        ".input:focus, input[type=\"text\"]:focus, input[type=\"password\"]:focus, select:focus, textarea:focus {",
+        f"  border-color: {_component('input-focus-border', 'var(--color-accent)')};",
+        f"  box-shadow: 0 0 0 3px var(--derived-accent-glow);",
+        "}",
+        ".modal-overlay {",
+        f"  background: {_component('modal-overlay', 'rgba(0,0,0,0.7)')};",
+        "}",
+        ".modal {",
+        f"  border-radius: {_component('modal-radius', 'var(--radius-lg)')};",
+        f"  padding: {_component('modal-padding', '1.25rem')};",
+        f"  background: var(--color-bg-surface);",
+        f"  border: 1px solid var(--color-border);",
+        "}",
+        ".modal-header {",
+        f"  display: flex;",
+        f"  align-items: center;",
+        f"  justify-content: space-between;",
+        f"  gap: 0.75rem;",
+        f"  margin-bottom: 1rem;",
+        "}",
+        ".modal-title {",
+        f"  margin: 0;",
+        f"  font-size: 1.125rem;",
+        f"  font-weight: 600;",
+        "}",
+        ".modal-close {",
+        f"  background: transparent;",
+        f"  border: none;",
+        f"  color: var(--color-text-secondary);",
+        f"  cursor: pointer;",
+        f"  font-size: 1.25rem;",
+        "}",
+        ".modal-body {",
+        f"  padding: 0;",
+        "}",
+        "th, .table-header {",
+        f"  background: {_component('table-header-bg', 'var(--color-bg-elevated)')};",
+        "}",
+        "tr:hover, .table-row:hover {",
+        f"  background: {_component('table-row-hover', 'var(--derived-accent-5)')};",
+        "}",
+        ".tag, .badge {",
+        f"  display: inline-flex;",
+        f"  align-items: center;",
+        f"  justify-content: center;",
+        f"  padding: 0.25rem 0.5rem;",
+        f"  font-size: 0.75rem;",
+        "}",
+        ".tag {",
+        f"  border-radius: {_component('tag-radius', '9999px')};",
+        "}",
+        ".badge {",
+        f"  border-radius: {_component('badge-radius', '9999px')};",
+        "}",
+        ".kpi-card {",
+        f"  background: {_component('kpi-bg', 'var(--color-bg-surface)')};",
+        f"  border: {_component('kpi-border', '1px solid var(--color-border)')};",
+        f"  border-radius: {_component('kpi-radius', 'var(--radius-lg)')};",
+        f"  padding: {_component('kpi-padding', '1rem')};",
+        "}",
+        ".kpi-label {",
+        f"  display: block;",
+        f"  color: var(--color-text-secondary);",
+        f"  font-size: 0.875rem;",
+        "}",
+        ".kpi-value {",
+        f"  font-size: 1.5rem;",
+        f"  font-weight: 700;",
+        "}",
+        ".kpi-delta {",
+        f"  font-size: 0.875rem;",
+        "}",
+        ".range-btn {",
+        f"  padding: 0.5rem 0.75rem;",
+        f"  border: 1px solid var(--color-border);",
+        f"  background: transparent;",
+        f"  color: var(--color-text-primary);",
+        f"  border-radius: {_component('card-radius', 'var(--radius-md)')};",
+        f"  cursor: pointer;",
+        "}",
+        ".range-btn.active {",
+        f"  background: {_component('range-btn-active-bg', 'var(--color-accent)')};",
+        f"  color: {_component('range-btn-active-color', 'var(--color-accent-contrast)')};",
+        f"  border-color: {_component('range-btn-active-border', 'var(--color-accent)')};",
+        "}",
+        ".range-btn:hover {",
+        f"  background: var(--derived-accent-5);",
+        "}",
+        ".filter-pill {",
+        f"  padding: 0.45rem 0.75rem;",
+        f"  border: 1px solid var(--color-border);",
+        f"  background: transparent;",
+        f"  color: var(--color-text-primary);",
+        f"  border-radius: {_component('card-radius', '9999px')};",
+        f"  cursor: pointer;",
+        "}",
+        ".filter-pill.active {",
+        f"  background: {_component('filter-pill-active-bg', 'var(--color-accent)')};",
+        f"  color: {_component('filter-pill-active-color', 'var(--color-accent-contrast)')};",
+        f"  border-color: {_component('filter-pill-active-border', 'var(--color-accent)')};",
+        "}",
+        ".filter-pill:hover {",
+        f"  background: var(--derived-accent-5);",
+        "}",
+        ".nav-item {",
+        f"  display: inline-flex;",
+        f"  align-items: center;",
+        f"  gap: 0.5rem;",
+        f"  padding: {_component('nav-item-padding', '0.5rem 0.75rem')};",
+        f"  border-radius: {_component('nav-item-radius', 'var(--radius-md)')};",
+        f"  font-size: {_component('nav-item-font-size', '0.95rem')};",
+        f"  color: var(--color-text-primary);",
+        f"  text-decoration: none;",
+        "}",
+        ".view-toggle button {",
+        f"  padding: 0.5rem 0.75rem;",
+        f"  border: 1px solid var(--color-border);",
+        f"  background: transparent;",
+        f"  color: var(--color-text-primary);",
+        f"  cursor: pointer;",
+        "}",
+        ".view-toggle button.active {",
+        f"  background: var(--color-accent);",
+        f"  color: var(--color-accent-contrast);",
+        f"  border-color: var(--color-accent);",
+        "}",
+        ".section-header {",
+        f"  font-size: {_component('section-header-font-size', '1.25rem')};",
+        f"  color: {_component('section-header-color', 'var(--color-text-primary)')};",
+        f"  text-transform: {_component('section-header-transform', 'uppercase')};",
+        f"  letter-spacing: {_component('section-header-spacing', '0.08em')};",
+        f"  font-weight: {_component('section-header-weight', '700')};",
+        "}",
+    ])
 
     return css_lines
 
@@ -460,6 +687,12 @@ DEFAULT_TEMPLATES = {
                 'section': '24px',
                 'container-max': '1400px',
                 'container-padding': '24px'
+            },
+            'layout': {
+                'nav-height': '56px',
+                'content-max-width': '1400px',
+                'content-padding': '24px',
+                'modal-max-width': '960px'
             },
             'radii': {
                 'sm': '4px',
@@ -566,6 +799,12 @@ DEFAULT_TEMPLATES = {
                 'section': '24px',
                 'container-max': '1400px',
                 'container-padding': '24px'
+            },
+            'layout': {
+                'nav-height': '56px',
+                'content-max-width': '1400px',
+                'content-padding': '24px',
+                'modal-max-width': '960px'
             },
             'radii': {
                 'sm': '4px',
@@ -829,8 +1068,13 @@ class TemplateManager:
             self._cache.invalidate()
 
     def render_css_variables(self, config: TemplateConfig) -> str:
-        """Generate CSS :root block from template."""
         return render_css_variables(config)
+
+    def render_component_css(self, config: TemplateConfig) -> str:
+        return render_component_css(config)
+
+    def render_page_css(self, config: TemplateConfig) -> str:
+        return render_page_css(config)
 
     def render_menu_css(self, config: TemplateConfig) -> str:
         """Generate menu-specific CSS rules."""

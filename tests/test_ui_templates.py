@@ -16,6 +16,8 @@ from ui_templates import (
     TemplateManager,
     TemplateCache,
     render_css_variables,
+    render_component_css,
+    render_page_css,
     validate_css_variables,
     get_fallback_template,
     ALLOWED_COLOR_PATTERN,
@@ -97,6 +99,30 @@ class TestTemplateConfig:
             assets={}
         )
         assert config.get_logo_url() is None
+
+    def test_get_component_and_metadata_helpers(self):
+        config = TemplateConfig(
+            template_key='test',
+            version=1,
+            name='Test Name',
+            family='test',
+            tokens={'components': {'button-primary-bg': '#123456'}},
+            assets={'favicon': {'url': 'https://example.com/favicon.ico'}},
+            metadata={'page_title': 'My Page', 'brand_name': 'My Brand'},
+        )
+        assert config.get_component('button-primary-bg') == '#123456'
+        assert config.get_component('missing', 'fallback') == 'fallback'
+        assert config.get_page_title() == 'My Page'
+        assert config.get_favicon_url() == 'https://example.com/favicon.ico'
+        assert config.get_brand_name() == 'My Brand'
+
+    def test_metadata_helpers_default_to_name(self):
+        config = TemplateConfig(
+            template_key='test', version=1, name='Test Name', family='test'
+        )
+        assert config.get_page_title() == 'Test Name'
+        assert config.get_brand_name() == 'Test Name'
+        assert config.get_favicon_url() is None
 
 
 # ──────────────────────────────────────────────
@@ -211,6 +237,124 @@ class TestRenderCSSVariables:
         )
         css = render_css_variables(config)
         assert '--asset-logo-url' in css
+
+
+class TestRenderComponentCSS:
+    def test_render_component_css_contains_expected_selectors(self):
+        config = TemplateConfig(
+            template_key='test',
+            version=1,
+            name='Test',
+            family='test',
+            tokens={
+                'components': {
+                    'button-primary-bg': '#111111',
+                    'button-primary-color': '#ffffff',
+                    'button-primary-hover': '#222222',
+                    'button-secondary-bg': '#333333',
+                    'button-secondary-color': '#eeeeee',
+                    'button-secondary-border': '1px solid #444444',
+                    'button-secondary-hover-bg': '#555555',
+                    'button-danger-bg': '#660000',
+                    'button-danger-color': '#ffffff',
+                    'button-danger-hover': '#770000',
+                    'button-ghost-bg': 'transparent',
+                    'button-ghost-color': '#999999',
+                    'button-ghost-hover-color': '#aaaaaa',
+                    'card-bg': '#101010',
+                    'card-border': '1px solid #202020',
+                    'card-radius': '12px',
+                    'card-padding': '20px',
+                    'input-bg': '#151515',
+                    'input-border': '1px solid #252525',
+                    'input-focus-border': '#3366ff',
+                    'modal-overlay': 'rgba(0, 0, 0, 0.7)',
+                    'modal-radius': '14px',
+                    'modal-padding': '24px',
+                    'table-header-bg': '#1a1a1a',
+                    'table-row-hover': '#222222',
+                    'tag-radius': '9999px',
+                    'badge-radius': '9999px',
+                    'kpi-bg': '#101010',
+                    'kpi-border': '1px solid #222222',
+                    'kpi-radius': '10px',
+                    'kpi-padding': '16px',
+                    'range-btn-active-bg': '#ff8800',
+                    'range-btn-active-color': '#000000',
+                    'range-btn-active-border': '#ff8800',
+                    'filter-pill-active-bg': '#00aa88',
+                    'filter-pill-active-color': '#ffffff',
+                    'filter-pill-active-border': '#00aa88',
+                    'nav-item-padding': '8px 12px',
+                    'nav-item-radius': '8px',
+                    'nav-item-font-size': '14px',
+                    'section-header-font-size': '18px',
+                    'section-header-color': '#f0f0f0',
+                    'section-header-transform': 'uppercase',
+                    'section-header-spacing': '0.08em',
+                    'section-header-weight': '700',
+                }
+            },
+        )
+        css = render_component_css(config)
+        expected_selectors = [
+            '.btn-primary {', '.btn-primary:hover {', '.btn-secondary {', '.btn-danger {', '.btn-ghost {',
+            '.btn-sm {', '.card {', '.card-header {', '.card-body {', '.card-footer {',
+            '.input, input[type="text"], input[type="password"], select, textarea {',
+            '.input:focus, input[type="text"]:focus, input[type="password"]:focus, select:focus, textarea:focus {',
+            '.modal-overlay {', '.modal {', '.modal-header {', '.modal-title {', '.modal-close {', '.modal-body {',
+            'th, .table-header {', 'tr:hover, .table-row:hover {', '.tag, .badge {', '.kpi-card {',
+            '.kpi-label {', '.kpi-value {', '.kpi-delta {', '.range-btn {', '.range-btn.active {', '.range-btn:hover {',
+            '.filter-pill {', '.filter-pill.active {', '.filter-pill:hover {', '.nav-item {', '.view-toggle button {',
+            '.view-toggle button.active {', '.section-header {',
+        ]
+        for selector in expected_selectors:
+            assert selector in css
+
+
+class TestRenderPageCSS:
+    def test_render_page_css_contains_expected_selectors(self):
+        config = TemplateConfig(
+            template_key='test',
+            version=1,
+            name='Test',
+            family='test',
+            tokens={
+                'colors': {
+                    'bg-primary': '#111111',
+                    'text-primary': '#eeeeee',
+                    'accent': '#ff9900',
+                    'accent-hover': '#ffaa33',
+                    'border': '#222222',
+                },
+                'fonts': {
+                    'primary': 'system-ui, sans-serif',
+                    'line-height': '1.6',
+                    'size-h1': '32px',
+                    'size-h2': '24px',
+                    'size-h3': '18px',
+                    'weight-bold': '700',
+                    'weight-medium': '600',
+                },
+                'spacing': {
+                    'md': '16px',
+                    'lg': '24px',
+                    'sm': '8px',
+                    'container-max': '1200px',
+                    'container-padding': '20px',
+                },
+                'layout': {
+                    'content-max-width': '1200px',
+                    'content-padding': '20px',
+                },
+            },
+        )
+        css = render_page_css(config)
+        for selector in ['body {', 'h1, h2, h3 {', 'h1 {', 'h2 {', 'h3 {', 'a {', 'a:hover {', '.container, .site-content {', '.app {', '.page-header {']:
+            assert selector in css
+        assert 'background: #111111;' in css
+        assert 'color: #eeeeee;' in css
+        assert 'font-size: 32px;' in css
 
 
 # ──────────────────────────────────────────────
