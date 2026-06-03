@@ -588,11 +588,28 @@ def _generate_component_css(config: TemplateConfig) -> list:
         f"  display: inline-flex;",
         f"  align-items: center;",
         f"  gap: 0.5rem;",
-        f"  padding: {_component('nav-item-padding', '0.5rem 0.75rem')};",
-        f"  border-radius: {_component('nav-item-radius', 'var(--radius-md)')};",
-        f"  font-size: {_component('nav-item-font-size', '0.95rem')};",
-        f"  color: var(--color-text-primary);",
+        f"  padding: {_component('nav-item-padding', '0.6rem 1.1rem')};",
+        f"  border-radius: {_component('nav-item-radius', '9999px')};",
+        f"  font-size: {_component('nav-item-font-size', '0.875rem')};",
+        f"  font-weight: {_component('nav-item-weight', '600')};",
+        f"  color: var(--color-text-secondary);",
+        f"  background: {_component('nav-item-bg', 'transparent')};",
         f"  text-decoration: none;",
+        f"  transition: all 0.2s ease;",
+        f"  cursor: pointer;",
+        f"  border: none;",
+        f"  white-space: nowrap;",
+        "}",
+        ".nav-item:hover {",
+        f"  color: var(--color-text-primary);",
+        f"  background: {_component('nav-item-hover-bg', 'rgba(255,255,255,0.08)')};",
+        "}",
+        ".nav-item.active {",
+        f"  color: var(--color-accent);",
+        f"  background: {_component('nav-item-active-bg', 'rgba(240,154,58,0.12)')};",
+        "}",
+        ".nav-item.active:hover {",
+        f"  background: {_component('nav-item-active-hover-bg', 'rgba(240,154,58,0.18)')};",
         "}",
         ".view-toggle button {",
         f"  padding: 0.5rem 0.75rem;",
@@ -1083,30 +1100,97 @@ class TemplateManager:
         return render_page_css(config)
 
     def render_menu_css(self, config: TemplateConfig) -> str:
-        """Generate menu-specific CSS rules."""
-        menu = config.menu
-        if not menu:
-            return ""
-
-        lines = ["/* Menu Styles */", ".site-nav {"]
-
-        if 'background' in menu:
-            lines.append(f"  background: {menu['background']};")
-        if 'height' in menu:
-            lines.append(f"  height: {menu['height']};")
-        if 'border-bottom' in menu:
-            lines.append(f"  border-bottom: {menu['border-bottom']};")
-
+        lines = ["/* Menu Styles */"]
+        lines.append("nav {")
+        lines.append("  position: sticky; top: 0; z-index: 100;")
+        lines.append("  background: var(--color-bg-surface);")
+        lines.append("  border-bottom: 1px solid var(--color-border);")
         lines.append("}")
-
-        # Active indicator
-        if menu.get('active-indicator') == 'bottom-border':
-            lines.append("""
-.site-nav .nav-item.active {
-  border-bottom: 2px solid var(--color-accent);
-}
-""")
-
+        lines.append("nav .nav-inner {")
+        lines.append("  max-width: var(--layout-content-max-width);")
+        lines.append("  margin: 0 auto;")
+        lines.append("  padding: 0 var(--layout-content-padding);")
+        lines.append("  display: flex;")
+        lines.append("  align-items: center;")
+        lines.append("  height: var(--layout-nav-height, 56px);")
+        lines.append("}")
+        lines.append("nav .brand {")
+        lines.append("  display: flex; align-items: center; gap: 8px;")
+        lines.append("  font-weight: var(--layout-brand-font-weight, 700);")
+        lines.append("  font-size: var(--layout-brand-font-size, 1.25rem);")
+        lines.append("  color: var(--color-accent);")
+        lines.append("  letter-spacing: -0.3px;")
+        lines.append("  flex-shrink: 0;")
+        lines.append("  text-decoration: none;")
+        lines.append("}")
+        lines.append("nav .brand img {")
+        lines.append("  height: var(--layout-logo-height, 28px);")
+        lines.append("  width: auto;")
+        lines.append("  opacity: 0.9;")
+        lines.append("}")
+        lines.append("nav .nav-links {")
+        lines.append("  display: flex;")
+        lines.append("  align-items: center;")
+        lines.append("  gap: 4px;")
+        lines.append("  flex: 1;")
+        lines.append("  justify-content: center;")
+        lines.append("}")
+        lines.append("nav .hamburger {")
+        lines.append("  display: none;")
+        lines.append("  background: none;")
+        lines.append("  border: none;")
+        lines.append("  color: var(--color-text-secondary);")
+        lines.append("  font-size: 20px;")
+        lines.append("  cursor: pointer;")
+        lines.append("  padding: 4px 8px;")
+        lines.append("  margin-left: auto;")
+        lines.append("}")
+        lines.append("nav .nav-logout {")
+        lines.append("  margin-left: auto;")
+        lines.append("  color: var(--color-text-secondary);")
+        lines.append("  font-size: 0.8rem;")
+        lines.append("  font-weight: 500;")
+        lines.append("}")
+        lines.append("nav .nav-logout a {")
+        lines.append("  color: var(--color-text-secondary);")
+        lines.append("  text-decoration: none;")
+        lines.append("  transition: color 0.15s;")
+        lines.append("}")
+        lines.append("nav .nav-logout a:hover {")
+        lines.append("  color: var(--color-text-primary);")
+        lines.append("}")
+        lines.append("@media (max-width: 640px) {")
+        lines.append("  nav .hamburger { display: block; }")
+        lines.append("  nav .nav-links {")
+        lines.append("    display: none;")
+        lines.append("    position: absolute;")
+        lines.append("    top: var(--layout-nav-height, 56px);")
+        lines.append("    left: 0; right: 0;")
+        lines.append("    background: var(--color-bg-surface);")
+        lines.append("    border-bottom: 1px solid var(--color-border);")
+        lines.append("    flex-direction: column;")
+        lines.append("    align-items: stretch;")
+        lines.append("    padding: 8px 0;")
+        lines.append("    gap: 0;")
+        lines.append("  }")
+        lines.append("  nav .nav-links.open { display: flex; }")
+        lines.append("  nav .nav-links .nav-item {")
+        lines.append("    padding: 12px 20px;")
+        lines.append("    border-radius: 0;")
+        lines.append("    border-left: 3px solid transparent;")
+        lines.append("  }")
+        lines.append("  nav .nav-links .nav-item.active {")
+        lines.append("    border-left-color: var(--color-accent);")
+        lines.append("    background: var(--derived-accent-5);")
+        lines.append("  }")
+        lines.append("  nav .nav-logout { display: none; }")
+        lines.append("  nav .nav-links.open ~ .nav-logout {")
+        lines.append("    display: block;")
+        lines.append("    margin-left: 0;")
+        lines.append("    padding: 12px 20px;")
+        lines.append("    border-left: 3px solid transparent;")
+        lines.append("  }")
+        lines.append("}")
         return "\n".join(lines)
 
     def to_json(self, config: TemplateConfig) -> Dict[str, Any]:
