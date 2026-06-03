@@ -159,10 +159,11 @@ render_pw_page(..., template_name='agentworx')  # for agentworx-content
 
 3. **Keep only app-specific structural CSS.** Apps should retain only CSS that is truly unique to their layout: grid definitions, positioning, special component arrangements, and app-specific animations.
 
-4. **Use template assets and metadata.** Pull the following from the template config rather than hardcoding:
-   - `template_title` — Page title/brand name
+4. **Use template assets.** Pull logo and favicon from the template config rather than hardcoding:
    - `template_logo_url` — Logo image URL
    - `template_favicon_url` — Favicon URL
+   
+   Page titles are app-specific and should be hardcoded in each app's context processor.
 
 ## Testing
 

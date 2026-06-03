@@ -108,11 +108,10 @@ class TestTemplateConfig:
             family='test',
             tokens={'components': {'button-primary-bg': '#123456'}},
             assets={'favicon': {'url': 'https://example.com/favicon.ico'}},
-            metadata={'page_title': 'My Page', 'brand_name': 'My Brand'},
+            metadata={'brand_name': 'My Brand'},
         )
         assert config.get_component('button-primary-bg') == '#123456'
         assert config.get_component('missing', 'fallback') == 'fallback'
-        assert config.get_page_title() == 'My Page'
         assert config.get_favicon_url() == 'https://example.com/favicon.ico'
         assert config.get_brand_name() == 'My Brand'
 
@@ -120,7 +119,6 @@ class TestTemplateConfig:
         config = TemplateConfig(
             template_key='test', version=1, name='Test Name', family='test'
         )
-        assert config.get_page_title() == 'Test Name'
         assert config.get_brand_name() == 'Test Name'
         assert config.get_favicon_url() is None
 

@@ -96,9 +96,6 @@ class TemplateConfig:
         components = self.tokens.get('components', {})
         return components.get(key, fallback)
 
-    def get_page_title(self) -> str:
-        return self.metadata.get('page_title', self.name)
-
     def get_favicon_url(self) -> Optional[str]:
         favicon = self.assets.get('favicon', {})
         return favicon.get('url') if isinstance(favicon, dict) else favicon
