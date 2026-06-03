@@ -1128,6 +1128,11 @@ class TemplateManager:
         lines.append("  width: auto;")
         lines.append("  opacity: 0.9;")
         lines.append("}")
+        if getattr(config, 'family', None) == 'r0gr':
+            lines.append("nav .brand img {")
+            lines.append("  border-radius: 50%;")
+            lines.append("  border: 2px solid var(--color-accent);")
+            lines.append("}")
         lines.append("nav .nav-links {")
         lines.append("  display: flex;")
         lines.append("  align-items: center;")
