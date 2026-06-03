@@ -82,6 +82,44 @@ class TemplateConfig:
         fonts = self.tokens.get('fonts', {})
         return fonts.get(key, 'system-ui, sans-serif')
 
+    def get_font_link(self) -> str:
+        """Generate a Google Fonts <link> tag from template font tokens.
+
+        Extracts display and body font names and builds a Google Fonts v2 URL
+        with weights 400–800. Returns an empty string if no valid Google Font
+        names are found (e.g. only system-ui fallbacks).
+        """
+        fonts = self.tokens.get('fonts', {})
+        display_font = fonts.get('display', '')
+        body_font = fonts.get('body', '')
+
+        seen = set()
+        names = []
+        generic = ('system-ui', 'sans-serif', 'serif', 'monospace',
+                   '-apple-system', 'blinkmacsystemfont', 'segoe ui')
+
+        for font_str in (display_font, body_font):
+            if not font_str:
+                continue
+            match = re.match(r"^\s*['\"]?([^'\"]+)['\"]?", font_str.strip())
+            if match:
+                name = match.group(1).strip()
+                if name.lower() in generic:
+                    continue
+                if name.lower() not in seen:
+                    seen.add(name.lower())
+                    names.append(name)
+
+        if not names:
+            return ""
+
+        family_params = [
+            f"family={name.replace(' ', '+')}:wght@400;500;600;700;800"
+            for name in names
+        ]
+        query = "&".join(family_params)
+        return f'<link href="https://fonts.googleapis.com/css2?{query}&display=swap" rel="stylesheet">'
+
     def get_spacing(self, key: str = 'md') -> str:
         """Get spacing value by key."""
         spacing = self.tokens.get('spacing', {})
