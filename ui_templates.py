@@ -283,6 +283,7 @@ def render_page_css(config: TemplateConfig) -> str:
 
     content_max_width = layout.get('content-max-width', _spacing('container-max', '1400px'))
     content_padding = layout.get('content-padding', _spacing('container-padding', '24px'))
+    content_margin_top = layout.get('content-margin-top', _spacing('container-margin-top', '24px'))
 
     return "\n".join([
         "body {",
@@ -324,12 +325,12 @@ def render_page_css(config: TemplateConfig) -> str:
         "}",
         ".container, .site-content {",
         f"  max-width: {content_max_width};",
-        "  margin: 0 auto;",
+        f"  margin: {content_margin_top} auto;",
         f"  padding: 0 {content_padding};",
         "}",
         ".app {",
         f"  max-width: {content_max_width};",
-        "  margin: 0 auto;",
+        f"  margin: {content_margin_top} auto;",
         f"  padding: {content_padding};",
         "}",
         ".page-header {",
