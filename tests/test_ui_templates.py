@@ -464,8 +464,9 @@ class TestTemplateManager:
             menu={'style': 'horizontal', 'height': '56px', 'background': '#21252a'}
         )
         css = manager.render_menu_css(config)
-        assert '.site-nav {' in css
-        assert 'height: 56px;' in css
+        assert 'nav {' in css
+        assert 'height: var(--layout-nav-height, 56px);' in css
+        assert '@media (max-width: 768px)' in css
 
 
 # ──────────────────────────────────────────────
