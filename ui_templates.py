@@ -224,6 +224,7 @@ def render_css_variables(config: TemplateConfig, selector: str = ':root') -> str
     Generate CSS custom properties + component classes from template configuration.
     """
     lines = [f"{selector} {{"]
+    emitted_vars = set()
 
     def _flatten_dict(data: dict, prefix: str = ''):
         singular_map = {
@@ -244,14 +245,34 @@ def render_css_variables(config: TemplateConfig, selector: str = ':root') -> str
             elif isinstance(value, str):
                 var_name = f"--{full_key}"
                 lines.append(f"  {var_name}: {value};")
+                emitted_vars.add(var_name)
 
     if config.tokens:
         _flatten_dict(config.tokens)
+
+    colors = config.tokens.get('colors', {})
+    text_colors = colors.get('text', {})
+    if isinstance(text_colors, dict) and '--color-text-muted' not in emitted_vars:
+        text_muted = text_colors.get('muted', text_colors.get('secondary'))
+        if text_muted:
+            lines.append(f"  --color-text-muted: {text_muted};")
+            emitted_vars.add('--color-text-muted')
 
     # Generate derived rgba colors
     derived = config.tokens.get('derived', {})
     for key, value in derived.items():
         lines.append(f"  --derived-{key}: {value};")
+        emitted_vars.add(f"--derived-{key}")
+
+    if '--color-accent-glow' not in emitted_vars:
+        accent_glow = derived.get('accent-glow')
+        if not accent_glow:
+            accent = config.get_color('accent', '')
+            if accent:
+                accent_glow = f"color-mix(in srgb, {accent} 25%, transparent)"
+        if accent_glow:
+            lines.append(f"  --color-accent-glow: {accent_glow};")
+            emitted_vars.add('--color-accent-glow')
 
     # Add logo URL as CSS variable
     logo_url = config.get_logo_url()
@@ -706,6 +727,121 @@ def _generate_component_css(config: TemplateConfig) -> list:
         f"  font-size: {_component('tab-intro-size', '12px')};",
         f"  margin-bottom: {_component('tab-intro-margin-bottom', '20px')};",
         "}",
+        ".toast {",
+        "  position: fixed; bottom: 24px; right: 24px; padding: 12px 20px;",
+        "  border-radius: var(--radius-md); background: var(--color-bg-surface);",
+        "  border: 1px solid var(--color-border); color: var(--color-text-primary);",
+        "  box-shadow: var(--shadow-lg); z-index: 2000; opacity: 0;",
+        "  transform: translateY(20px); transition: all 0.3s ease;",
+        "}",
+        ".toast.show {",
+        "  opacity: 1; transform: translateY(0);",
+        "}",
+        ".toast.success {",
+        "  border-color: var(--color-success); background: var(--derived-success-10);",
+        "}",
+        ".toast.error {",
+        "  border-color: var(--color-error); background: var(--derived-error-10);",
+        "}",
+        ".toast.warn {",
+        "  border-color: var(--color-warn); background: var(--derived-warn-10);",
+        "}",
+        ".progress-bar {",
+        "  width: 100%; height: 8px; background: var(--color-bg-tertiary);",
+        "  border-radius: var(--radius-pill); overflow: hidden;",
+        "}",
+        ".progress-fill {",
+        "  height: 100%; background: var(--color-accent);",
+        "  border-radius: var(--radius-pill); transition: width 0.3s ease;",
+        "}",
+        ".progress-fill.success {",
+        "  background: var(--color-success);",
+        "}",
+        ".progress-fill.warn {",
+        "  background: var(--color-warn);",
+        "}",
+        ".progress-fill.error {",
+        "  background: var(--color-error);",
+        "}",
+        ".chart-card {",
+        "  background: var(--color-bg-surface); border: 1px solid var(--color-border);",
+        "  border-radius: var(--radius-lg); padding: 20px;",
+        "}",
+        ".chart-title {",
+        "  font-family: var(--font-display); font-size: 1.1rem;",
+        "  font-weight: 600; color: var(--color-text-primary); margin-bottom: 16px;",
+        "}",
+        ".chart-subtitle {",
+        "  font-family: var(--font-body); font-size: 0.875rem;",
+        "  color: var(--color-text-secondary); margin-bottom: 12px;",
+        "}",
+        ".form-row {",
+        "  display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 16px;",
+        "}",
+        ".form-group {",
+        "  flex: 1; min-width: 200px;",
+        "}",
+        ".form-group label {",
+        "  display: block; font-size: 0.875rem; font-weight: 500;",
+        "  color: var(--color-text-secondary); margin-bottom: 6px;",
+        "}",
+        ".form-group .hint {",
+        "  font-size: 0.75rem; color: var(--color-text-muted); margin-top: 4px;",
+        "}",
+        ".step-indicator {",
+        "  display: flex; align-items: center; justify-content: center;",
+        "  gap: 8px; margin-bottom: 24px;",
+        "}",
+        ".step-dot {",
+        "  width: 12px; height: 12px; border-radius: 50%;",
+        "  background: var(--color-bg-tertiary); border: 2px solid var(--color-border);",
+        "  transition: all 0.3s ease;",
+        "}",
+        ".step-dot.active {",
+        "  background: var(--color-accent); border-color: var(--color-accent);",
+        "}",
+        ".step-dot.done {",
+        "  background: var(--color-success); border-color: var(--color-success);",
+        "}",
+        ".step-line {",
+        "  flex: 1; height: 2px; background: var(--color-bg-tertiary); max-width: 60px;",
+        "}",
+        ".step-line.done {",
+        "  background: var(--color-success);",
+        "}",
+        ".dragging {",
+        "  opacity: 0.5; transform: scale(0.98);",
+        "}",
+        ".drag-over {",
+        "  border: 2px dashed var(--color-accent); background: var(--derived-accent-5);",
+        "}",
+        ".drag-handle {",
+        "  cursor: grab; padding: 4px; color: var(--color-text-muted);",
+        "}",
+        ".drag-handle:active {",
+        "  cursor: grabbing;",
+        "}",
+        ".kpi-delta.up {",
+        "  color: var(--color-success);",
+        "}",
+        ".kpi-delta.down {",
+        "  color: var(--color-error);",
+        "}",
+        ".kpi-delta.neutral {",
+        "  color: var(--color-text-muted);",
+        "}",
+        ":focus-visible {",
+        "  outline: 2px solid var(--color-accent); outline-offset: 2px;",
+        "}",
+        "button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {",
+        "  outline: 2px solid var(--color-accent); outline-offset: 2px;",
+        "}",
+        "@media print {",
+        "  .no-print, .print-btn, nav, .modal-overlay { display: none !important; }",
+        "  body { background: white !important; color: black !important; }",
+        "  .card, .task { break-inside: avoid; page-break-inside: avoid; }",
+        "  a { text-decoration: none; color: black !important; }",
+        "}",
     ])
 
     return css_lines
@@ -731,6 +867,7 @@ DEFAULT_TEMPLATES = {
                 'bg-surface': '#21252a',
                 'bg-elevated': '#2a2f35',
                 'bg-overlay': 'rgba(0,0,0,0.75)',
+                'bg-tertiary': '#16191d',
                 'border': '#2a2f35',
                 'text-primary': '#c4c9ce',
                 'text-secondary': '#8a9199',
@@ -755,6 +892,9 @@ DEFAULT_TEMPLATES = {
                 'success-40': 'rgba(106,153,85,0.40)',
                 'error-8': 'rgba(224,85,90,0.08)',
                 'error-20': 'rgba(224,85,90,0.20)',
+                'success-10': 'rgba(106,153,85,0.10)',
+                'error-10': 'rgba(224,85,90,0.10)',
+                'warn-10': 'rgba(210,153,34,0.10)',
                 'white-3': 'rgba(255,255,255,0.03)',
                 'white-10': 'rgba(255,255,255,0.10)',
                 'surface-hover': 'rgba(255,255,255,0.03)',
@@ -863,6 +1003,7 @@ DEFAULT_TEMPLATES = {
                 'bg-surface': '#1a1410',
                 'bg-elevated': '#2a1f15',
                 'bg-overlay': 'rgba(0,0,0,0.75)',
+                'bg-tertiary': '#0a0705',
                 'border': '#2a1f15',
                 'text-primary': '#c4c9ce',
                 'text-secondary': '#9a9085',
@@ -887,6 +1028,9 @@ DEFAULT_TEMPLATES = {
                 'success-40': 'rgba(0,204,119,0.40)',
                 'error-8': 'rgba(255,85,68,0.08)',
                 'error-20': 'rgba(255,85,68,0.20)',
+                'success-10': 'rgba(0,204,119,0.10)',
+                'error-10': 'rgba(255,85,68,0.10)',
+                'warn-10': 'rgba(224,160,48,0.10)',
                 'white-3': 'rgba(255,255,255,0.03)',
                 'white-10': 'rgba(255,255,255,0.10)',
                 'surface-hover': 'rgba(255,255,255,0.03)',
