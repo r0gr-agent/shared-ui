@@ -286,6 +286,7 @@ def render_page_css(config: TemplateConfig) -> str:
     content_margin_top = layout.get('content-margin-top', _spacing('container-margin-top', '24px'))
 
     return "\n".join([
+        "html { overflow-y: scroll; }",
         "body {",
         f"  background: {_color('bg-primary', 'var(--color-bg-primary)')};",
         f"  color: {_color('text-primary', 'var(--color-text-primary)')};",
