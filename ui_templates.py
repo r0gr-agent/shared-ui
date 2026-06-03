@@ -982,16 +982,52 @@ def _fetch_template_by_name_from_db(name: str) -> Optional[TemplateConfig]:
 
 
 def _fetch_assignment_from_db(app_key: str, environment: str = 'production') -> Optional[Dict[str, Any]]:
-    """Fetch the active template assignment for an app."""
+    """Fetch the active template assignment for an app.
+
+    Prefers hub.tiles (the hub UI source of truth) and falls back to
+    ui.assignments so that template changes made via the hub are picked
+    up immediately without a manual DB sync.
+    """
     conn = None
     try:
         conn = _get_db_connection()
         with conn.cursor() as cur:
-            cur.execute("""
+            # Primary: hub.tiles (edited via hub UI)
+            cur.execute(
+                """
+                SELECT template_key
+                FROM hub.tiles
+                WHERE app_key = %s AND active = TRUE
+                ORDER BY sort_order DESC, id DESC
+                LIMIT 1
+                """,
+                (app_key,),
+            )
+            row = cur.fetchone()
+            if row and row.get("template_key"):
+                template_key = row["template_key"]
+                # Resolve latest version from ui.templates
+                cur.execute(
+                    """
+                    SELECT version FROM ui.templates
+                    WHERE template_key = %s
+                    ORDER BY version DESC
+                    LIMIT 1
+                    """,
+                    (template_key,),
+                )
+                version_row = cur.fetchone()
+                version = version_row["version"] if version_row else 1
+                return {"template_key": template_key, "version": version}
+            # Fallback: ui.assignments
+            cur.execute(
+                """
                 SELECT template_key, version
                 FROM ui.assignments
                 WHERE app_key = %s AND environment = %s AND active = TRUE
-            """, (app_key, environment))
+                """,
+                (app_key, environment),
+            )
             return cur.fetchone()
     finally:
         if conn:
