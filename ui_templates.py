@@ -729,7 +729,7 @@ DEFAULT_TEMPLATES = {
         assets={
             'logo': {'url': 'https://agentworx.agency/assets/images/agentworx-logo-white.png'},
             'avatar': {'url': 'https://r0gr.de/roger-avatar.jpg'},
-            'favicon': {'url': '/favicon.ico'}
+            'favicon': {'url': 'https://agentworx.agency/favicon.ico'}
         },
         menu={'style': 'horizontal', 'position': 'top'}
     ),
@@ -841,7 +841,7 @@ DEFAULT_TEMPLATES = {
         assets={
             'logo': {'url': None},
             'avatar': {'url': 'https://r0gr.de/roger-avatar.jpg'},
-            'favicon': {'url': '/favicon.ico'}
+            'favicon': {'url': 'https://r0gr.de/favicon.ico'}
         },
         menu={'style': 'horizontal', 'position': 'top'}
     )
