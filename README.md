@@ -90,6 +90,80 @@ render_pw_page(..., template_name='r0gr')  # for audit-viewer
 render_pw_page(..., template_name='agentworx')  # for agentworx-content
 ```
 
+## Component CSS System
+
+`render_component_css()` generates a comprehensive set of utility classes from DB template tokens. All 4 apps now use these shared classes instead of defining their own.
+
+### Buttons
+
+- `.btn-primary`, `.btn-secondary`, `.btn-danger`, `.btn-ghost`
+- All include hover states (`:hover`) and transitions
+- Size variant: `.btn-sm`
+
+### Forms
+
+- `.input`, `input[type="text"]`, `input[type="password"]`, `select`, `textarea`
+- Includes focus states with accent glow effect (`box-shadow: 0 0 0 3px var(--derived-accent-glow)`)
+
+### Cards
+
+- `.card`, `.card-header`, `.card-body`, `.card-footer`
+
+### Tables
+
+- `th`, `.table-header`, `tr:hover`, `.table-row:hover`
+
+### Modals
+
+- `.modal-overlay`, `.modal`, `.modal-header`, `.modal-title`, `.modal-close`, `.modal-body`
+
+### Navigation
+
+- `.nav-item`
+
+### Tags & Badges
+
+- `.tag`, `.badge`
+
+### KPIs
+
+- `.kpi-card`, `.kpi-label`, `.kpi-value`, `.kpi-delta`
+
+### Filters & Toggles
+
+- `.range-btn`, `.filter-pill`, `.view-toggle button`
+
+### Section Headers
+
+- `.section-header`
+
+## App Migration Status
+
+| App | Status | Template Family |
+|-----|--------|-----------------|
+| audit-viewer | Migrated | agentworx |
+| agentworx-content | Migrated | agentworx |
+| console-hub | Migrated | r0gr |
+| fitness-dashboard | Migrated | r0gr |
+
+## Guidelines for App Developers
+
+1. **Do not redefine shared selectors locally.** Apps should NOT define the selectors listed above in their own stylesheets. These are provided by `shared-ui`.
+
+2. **Inject all shared CSS blocks.** Each app should load the following blocks into its base template:
+   - `ui_css_block` — CSS custom properties (`:root` variables)
+   - `ui_menu_css` — Navigation/menu styles
+   - `ui_layout_css` — Layout structure rules
+   - `ui_component_css` — Component utility classes (buttons, cards, forms, etc.)
+   - `ui_page_css` — Base page styles (body, headings, links, containers)
+
+3. **Keep only app-specific structural CSS.** Apps should retain only CSS that is truly unique to their layout: grid definitions, positioning, special component arrangements, and app-specific animations.
+
+4. **Use template assets and metadata.** Pull the following from the template config rather than hardcoding:
+   - `template_title` — Page title/brand name
+   - `template_logo_url` — Logo image URL
+   - `template_favicon_url` — Favicon URL
+
 ## Testing
 
 Run the shared UI tests:
