@@ -346,6 +346,11 @@ def render_page_css(config: TemplateConfig) -> str:
 
     return "\n".join([
         "html { overflow-y: scroll; }",
+        "* { scrollbar-width: thin; scrollbar-color: var(--color-border) transparent; }",
+        "::-webkit-scrollbar { width: 6px; height: 6px; }",
+        "::-webkit-scrollbar-track { background: transparent; }",
+        "::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 3px; }",
+        "::-webkit-scrollbar-thumb:hover { background: var(--color-text-muted); }",
         "body {",
         f"  background: {_color('bg-primary', 'var(--color-bg-primary)')};",
         f"  color: {_color('text-primary', 'var(--color-text-primary)')};",
@@ -557,6 +562,7 @@ def _generate_component_css(config: TemplateConfig) -> list:
         f"  outline: none;",
         f"  transition: border-color 0.2s, box-shadow 0.2s;",
         f"  -webkit-appearance: none;",
+        f"  box-sizing: border-box;",
         "}",
         ".input:focus, input[type=\"text\"]:focus, input[type=\"password\"]:focus, select:focus, textarea:focus {",
         f"  border-color: {_component('input-focus-border', 'var(--color-accent)')};",
@@ -606,9 +612,20 @@ def _generate_component_css(config: TemplateConfig) -> list:
         f"  cursor: pointer;",
         f"  font-size: 1.25rem;",
         "}",
+        ".modal *:focus, .modal-overlay *:focus {",
+        f"  outline: 2px solid var(--color-accent);",
+        f"  outline-offset: 2px;",
+        "}",
         ".modal-body {",
         f"  padding: 0;",
+        f"  overflow-y: auto;",
+        f"  flex: 1;",
         "}",
+        ".modal-body::-webkit-scrollbar { width: 5px; }",
+        ".modal-body::-webkit-scrollbar-track { background: transparent; }",
+        ".modal-body::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 3px; }",
+        ".modal-body::-webkit-scrollbar-thumb:hover { background: var(--color-text-muted); }",
+        ".modal { scrollbar-width: thin; scrollbar-color: var(--color-border) transparent; }",
         "th, .table-header {",
         f"  background: {_component('table-header-bg', 'var(--color-bg-elevated)')};",
         "}",
@@ -873,6 +890,33 @@ def _generate_component_css(config: TemplateConfig) -> list:
         "}",
         "button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {",
         "  outline: 2px solid var(--color-accent); outline-offset: 2px;",
+        "}",
+        ".table-wrap {",
+        "  overflow-x: auto;",
+        "  -webkit-overflow-scrolling: touch;",
+        "  width: 100%;",
+        "}",
+        ".table-wrap::-webkit-scrollbar { height: 4px; }",
+        ".table-wrap::-webkit-scrollbar-track { background: transparent; }",
+        ".table-wrap::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 2px; }",
+        ".table-wrap::-webkit-scrollbar-thumb:hover { background: var(--color-text-muted); }",
+        ".check-edit-btn, .manage-btn {",
+        "  display: inline-flex; align-items: center; gap: 6px;",
+        "  padding: 6px 14px; border-radius: var(--radius-md, 6px);",
+        "  font-family: inherit; font-size: 0.875rem; font-weight: 500;",
+        "  cursor: pointer; transition: all 0.2s ease; white-space: nowrap;",
+        "  background: var(--color-bg-elevated); color: var(--color-text-primary);",
+        "  border: 1px solid var(--color-border);",
+        "  box-shadow: 0 1px 3px rgba(0,0,0,0.15);",
+        "  min-height: 36px;",
+        "}",
+        ".check-edit-btn:hover, .manage-btn:hover {",
+        "  background: var(--color-bg-surface);",
+        "  border-color: var(--color-accent);",
+        "  transform: translateY(-1px);",
+        "}",
+        "@media (max-width: 768px) {",
+        "  .section-header { text-align: left; justify-content: flex-start; align-items: center; flex-wrap: nowrap; white-space: nowrap; }",
         "}",
         "@media print {",
         "  .no-print, .print-btn, nav, .modal-overlay { display: none !important; }",
@@ -1460,10 +1504,13 @@ class TemplateManager:
         lines.append("  width: auto;")
         lines.append("  opacity: 0.9;")
         lines.append("}")
-        if getattr(config, 'family', None) == 'r0gr':
+        logo = (config.assets or {}).get('logo', {})
+        if logo.get('border-radius') or logo.get('border'):
             lines.append("nav .brand img {")
-            lines.append("  border-radius: 50%;")
-            lines.append("  border: 2px solid var(--color-accent);")
+            if logo.get('border-radius'):
+                lines.append(f"  border-radius: {logo['border-radius']};")
+            if logo.get('border'):
+                lines.append(f"  border: {logo['border']};")
             lines.append("}")
         lines.append("nav .nav-links {")
         lines.append("  display: flex;")
@@ -1474,14 +1521,31 @@ class TemplateManager:
         lines.append("}")
         lines.append("nav .hamburger {")
         lines.append("  display: none;")
-        lines.append("  background: none;")
+        lines.append("  background: transparent;")
         lines.append("  border: none;")
         lines.append("  color: var(--color-text-secondary);")
-        lines.append("  font-size: 20px;")
         lines.append("  cursor: pointer;")
-        lines.append("  padding: 4px 8px;")
-        lines.append("  margin-left: auto;")
+        lines.append("  padding: 0;")
+        lines.append("  margin: 0 0 0 auto;")
+        lines.append("  width: 36px;")
+        lines.append("  height: var(--layout-nav-height, 56px);")
+        lines.append("  position: relative;")
         lines.append("}")
+        lines.append("nav .hamburger span,")
+        lines.append("nav .hamburger span::before,")
+        lines.append("nav .hamburger span::after {")
+        lines.append("  display: block;")
+        lines.append("  position: absolute;")
+        lines.append("  height: 2px;")
+        lines.append("  width: 20px;")
+        lines.append("  background: currentColor;")
+        lines.append("  border-radius: 1px;")
+        lines.append("  left: 50%;")
+        lines.append("  transform: translateX(-50%);")
+        lines.append("}")
+        lines.append("nav .hamburger span { top: 50%; margin-top: -1px; }")
+        lines.append("nav .hamburger span::before { content: ''; top: -6px; }")
+        lines.append("nav .hamburger span::after { content: ''; top: 6px; }")
         lines.append("nav .nav-logout {")
         lines.append("  margin-left: auto;")
         lines.append("  color: var(--color-text-secondary);")
@@ -1500,7 +1564,9 @@ class TemplateManager:
         lines.append("  color: var(--color-text-primary);")
         lines.append("}")
         lines.append("@media (max-width: 768px) {")
-        lines.append("  nav .hamburger { display: block; }")
+        lines.append("  nav .brand span { font-size: 0.9rem; line-height: 1; margin-top: 2px; }")
+        lines.append("  nav .hamburger { display: block; margin-left: auto; }")
+        lines.append("  nav .nav-inner { flex-wrap: nowrap; overflow: hidden; align-items: center; }")
         lines.append("  nav .nav-links {")
         lines.append("    display: none;")
         lines.append("    position: absolute;")
@@ -1523,12 +1589,30 @@ class TemplateManager:
         lines.append("    border-left-color: var(--color-accent);")
         lines.append("    background: var(--derived-accent-5);")
         lines.append("  }")
-        lines.append("  nav .nav-logout { display: none; }")
-        lines.append("  nav .nav-links.open ~ .nav-logout {")
-        lines.append("    display: block;")
+        lines.append("  nav .nav-logout {")
+        lines.append("    display: flex;")
         lines.append("    margin-left: 0;")
-        lines.append("    padding: 12px 20px;")
-        lines.append("    border-left: 3px solid transparent;")
+        lines.append("    padding: 0;")
+        lines.append("    white-space: nowrap;")
+        lines.append("    font-size: 0.75rem;")
+        lines.append("    align-items: center;")
+        lines.append("    gap: 4px;")
+        lines.append("    flex-shrink: 0;")
+        lines.append("  }")
+        lines.append("  nav .nav-logout span { display: none; }")
+        lines.append("  nav .nav-logout .nav-sep { display: none; }")
+        lines.append("  nav .nav-logout a {")
+        lines.append("    padding: 4px 8px;")
+        lines.append("    border-radius: var(--radius-sm);")
+        lines.append("    font-size: 0.75rem;")
+        lines.append("    color: var(--color-text-secondary);")
+        lines.append("    text-decoration: none;")
+        lines.append("    border: none;")
+        lines.append("    background: transparent;")
+        lines.append("  }")
+        lines.append("  nav .nav-logout a:hover {")
+        lines.append("    color: var(--color-text-primary);")
+        lines.append("    text-decoration: underline;")
         lines.append("  }")
         lines.append("}")
         return "\n".join(lines)
