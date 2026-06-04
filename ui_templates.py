@@ -11,7 +11,7 @@ Provides:
 Usage:
     from ui_templates import (
         TemplateConfig, TemplateManager, TemplateCache,
-        render_css_variables, validate_css_variables, get_fallback_template
+        render_css_variables, validate_css_variables
     )
 """
 
@@ -66,7 +66,6 @@ class TemplateConfig:
     template_key: str
     version: int
     name: str
-    family: str
     tokens: Dict[str, Any] = field(default_factory=dict)
     assets: Dict[str, Any] = field(default_factory=dict)
     menu: Dict[str, Any] = field(default_factory=dict)
@@ -78,9 +77,9 @@ class TemplateConfig:
         return colors.get(key, fallback)
 
     def get_font(self, key: str = 'primary') -> str:
-        """Get font value by key."""
+        """Get font value by key, falling back to 'primary' before default."""
         fonts = self.tokens.get('fonts', {})
-        return fonts.get(key, 'system-ui, sans-serif')
+        return fonts.get(key) or fonts.get('primary', 'system-ui, sans-serif')
 
     def get_font_link(self) -> str:
         """Generate a Google Fonts <link> tag from template font tokens.
@@ -933,285 +932,7 @@ def _generate_component_css(config: TemplateConfig) -> list:
 # Fallback Templates
 # ──────────────────────────────────────────────
 
-DEFAULT_TEMPLATES = {
-    'agentworx': TemplateConfig(
-        template_key='agentworx',
-        version=0,
-        name='Agentworx Default (Offline)',
-        family='agentworx',
-        tokens={
-            'colors': {
-                'accent': '#83ce00',
-                'accent-dim': '#6a9955',
-                'accent-hover': '#9be01a',
-                'accent-contrast': '#1a1d21',
-                'bg-primary': '#1a1d21',
-                'bg-surface': '#21252a',
-                'bg-elevated': '#2a2f35',
-                'bg-overlay': 'rgba(0,0,0,0.75)',
-                'bg-tertiary': '#16191d',
-                'border': '#2a2f35',
-                'text-primary': '#c4c9ce',
-                'text-secondary': '#8a9199',
-                'text-muted': '#5a6068',
-                'text-heading': '#e8eaed',
-                'warn': '#d29922',
-                'error': '#e0555a',
-                'success': '#6a9955',
-                'info': '#539bf5',
-            },
-            'derived': {
-                'accent-5': 'rgba(131,206,0,0.05)',
-                'accent-8': 'rgba(131,206,0,0.08)',
-                'accent-10': 'rgba(131,206,0,0.10)',
-                'accent-12': 'rgba(131,206,0,0.12)',
-                'accent-15': 'rgba(131,206,0,0.15)',
-                'accent-25': 'rgba(131,206,0,0.25)',
-                'accent-50': 'rgba(131,206,0,0.50)',
-                'accent-glow': 'rgba(131,206,0,0.2)',
-                'success-8': 'rgba(106,153,85,0.08)',
-                'success-20': 'rgba(106,153,85,0.20)',
-                'success-40': 'rgba(106,153,85,0.40)',
-                'error-8': 'rgba(224,85,90,0.08)',
-                'error-20': 'rgba(224,85,90,0.20)',
-                'success-10': 'rgba(106,153,85,0.10)',
-                'error-10': 'rgba(224,85,90,0.10)',
-                'warn-10': 'rgba(210,153,34,0.10)',
-                'white-3': 'rgba(255,255,255,0.03)',
-                'white-10': 'rgba(255,255,255,0.10)',
-                'surface-hover': 'rgba(255,255,255,0.03)',
-                'surface-hover-strong': 'rgba(255,255,255,0.06)',
-                'bg-backdrop': 'rgba(26,29,33,0.85)',
-            },
-            'fonts': {
-                'display': "'Syne', sans-serif",
-                'body': "'DM Sans', sans-serif",
-                'primary': "'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-                'monospace': "ui-monospace, SFMono-Regular, 'SF Mono', Consolas, monospace",
-                'size-base': '15px',
-                'size-xs': '11px',
-                'size-sm': '13px',
-                'size-md': '15px',
-                'size-lg': '18px',
-                'size-xl': '22px',
-                'size-xxl': '32px',
-                'size-h1': '28px',
-                'size-h2': '22px',
-                'size-h3': '18px',
-                'weight-normal': '400',
-                'weight-medium': '500',
-                'weight-semibold': '600',
-                'weight-bold': '700',
-                'line-height': '1.6',
-                'line-height-tight': '1.25',
-                'line-height-snug': '1.35'
-            },
-            'spacing': {
-                '3xs': '1px',
-                '2xs': '2px',
-                'xs': '4px',
-                'sm': '8px',
-                'md': '16px',
-                'lg': '24px',
-                'xl': '32px',
-                'xxl': '48px',
-                '3xl': '64px',
-                '4xl': '96px',
-                'section': '32px',
-                'component-gap': '16px',
-                'item-gap': '8px',
-                'container-max': '1400px',
-                'container-padding': '24px'
-            },
-            'layout': {
-                'nav-height': '56px',
-                'content-max-width': '1400px',
-                'content-padding': '24px',
-                'modal-max-width': '960px',
-                'breakpoint-sm': '480px',
-                'breakpoint-md': '768px',
-                'breakpoint-lg': '1024px',
-                'breakpoint-xl': '1280px'
-            },
-            'radii': {
-                'sm': '4px',
-                'md': '8px',
-                'lg': '12px',
-                'pill': '9999px'
-            },
-            'shadows': {
-                'sm': '0 1px 2px rgba(0,0,0,0.2)',
-                'md': '0 4px 12px rgba(0,0,0,0.3)',
-                'lg': '0 8px 24px rgba(0,0,0,0.4)',
-                'glow-accent': '0 0 12px rgba(131, 206, 0, 0.2)'
-            },
-            'transitions': {
-                'fast': '0.1s ease',
-                'normal': '0.2s ease',
-                'slow': '0.3s ease'
-            },
-            'chart_palette': {
-                'primary': '#83ce00',
-                'secondary': '#539bf5',
-                'success': '#6a9955',
-                'danger': '#e0555a',
-                'neutral': '#6a7078',
-                'grid': 'rgba(128,128,128,0.1)',
-                'extra1': '#c9a227',
-                'extra2': '#a56cc7',
-                'extra3': '#4fc3f7',
-                'extra4': '#ff9800'
-            }
-        },
-        assets={
-            'logo': {'url': 'https://agentworx.agency/assets/images/agentworx-logo-white.png'},
-            'avatar': {'url': 'https://r0gr.de/roger-avatar.jpg'},
-            'favicon': {'url': 'https://agentworx.agency/favicon.ico'}
-        },
-        menu={'style': 'horizontal', 'position': 'top'}
-    ),
-    'r0gr': TemplateConfig(
-        template_key='r0gr',
-        version=0,
-        name='r0gr Default (Offline)',
-        family='r0gr',
-        tokens={
-            'colors': {
-                'accent': '#f09a3a',
-                'accent-dim': '#c07a2a',
-                'accent-hover': '#ffaa4a',
-                'accent-contrast': '#0f0a08',
-                'bg-primary': '#0f0a08',
-                'bg-surface': '#1a1410',
-                'bg-elevated': '#2a1f15',
-                'bg-overlay': 'rgba(0,0,0,0.75)',
-                'bg-tertiary': '#0a0705',
-                'border': '#2a1f15',
-                'text-primary': '#c4c9ce',
-                'text-secondary': '#9a9085',
-                'text-muted': '#5a5048',
-                'text-heading': '#e8eaed',
-                'warn': '#e0a030',
-                'error': '#ff5544',
-                'success': '#00cc77',
-                'info': '#5aafdf',
-            },
-            'derived': {
-                'accent-5': 'rgba(240,154,58,0.05)',
-                'accent-8': 'rgba(240,154,58,0.08)',
-                'accent-10': 'rgba(240,154,58,0.10)',
-                'accent-12': 'rgba(240,154,58,0.12)',
-                'accent-15': 'rgba(240,154,58,0.15)',
-                'accent-25': 'rgba(240,154,58,0.25)',
-                'accent-50': 'rgba(240,154,58,0.50)',
-                'accent-glow': 'rgba(240,154,58,0.2)',
-                'success-8': 'rgba(0,204,119,0.08)',
-                'success-20': 'rgba(0,204,119,0.20)',
-                'success-40': 'rgba(0,204,119,0.40)',
-                'error-8': 'rgba(255,85,68,0.08)',
-                'error-20': 'rgba(255,85,68,0.20)',
-                'success-10': 'rgba(0,204,119,0.10)',
-                'error-10': 'rgba(255,85,68,0.10)',
-                'warn-10': 'rgba(224,160,48,0.10)',
-                'white-3': 'rgba(255,255,255,0.03)',
-                'white-10': 'rgba(255,255,255,0.10)',
-                'surface-hover': 'rgba(255,255,255,0.03)',
-                'surface-hover-strong': 'rgba(255,255,255,0.06)',
-                'bg-backdrop': 'rgba(15,10,8,0.85)',
-            },
-            'fonts': {
-                'display': "'Outfit', sans-serif",
-                'body': "'Plus Jakarta Sans', sans-serif",
-                'primary': "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-                'monospace': "ui-monospace, SFMono-Regular, 'SF Mono', Consolas, monospace",
-                'size-base': '15px',
-                'size-xs': '11px',
-                'size-sm': '13px',
-                'size-md': '15px',
-                'size-lg': '18px',
-                'size-xl': '22px',
-                'size-xxl': '32px',
-                'size-h1': '28px',
-                'size-h2': '22px',
-                'size-h3': '18px',
-                'weight-normal': '400',
-                'weight-medium': '500',
-                'weight-semibold': '600',
-                'weight-bold': '700',
-                'line-height': '1.6',
-                'line-height-tight': '1.25',
-                'line-height-snug': '1.35'
-            },
-            'spacing': {
-                '3xs': '1px',
-                '2xs': '2px',
-                'xs': '4px',
-                'sm': '8px',
-                'md': '16px',
-                'lg': '24px',
-                'xl': '32px',
-                'xxl': '48px',
-                '3xl': '64px',
-                '4xl': '96px',
-                'section': '32px',
-                'component-gap': '16px',
-                'item-gap': '8px',
-                'container-max': '1400px',
-                'container-padding': '24px'
-            },
-            'layout': {
-                'nav-height': '56px',
-                'content-max-width': '1400px',
-                'content-padding': '24px',
-                'modal-max-width': '960px',
-                'breakpoint-sm': '480px',
-                'breakpoint-md': '768px',
-                'breakpoint-lg': '1024px',
-                'breakpoint-xl': '1280px'
-            },
-            'radii': {
-                'sm': '4px',
-                'md': '8px',
-                'lg': '12px',
-                'pill': '9999px'
-            },
-            'shadows': {
-                'sm': '0 1px 2px rgba(0,0,0,0.3)',
-                'md': '0 4px 12px rgba(0,0,0,0.4)',
-                'lg': '0 8px 24px rgba(0,0,0,0.5)',
-                'glow-accent': '0 0 12px rgba(240, 154, 58, 0.2)'
-            },
-            'transitions': {
-                'fast': '0.1s ease',
-                'normal': '0.2s ease',
-                'slow': '0.3s ease'
-            },
-            'chart_palette': {
-                'primary': '#f09a3a',
-                'secondary': '#5aafdf',
-                'success': '#00cc77',
-                'danger': '#ff5544',
-                'neutral': '#8a7f70',
-                'grid': 'rgba(128,128,128,0.1)',
-                'extra1': '#ddaa33',
-                'extra2': '#aa66cc',
-                'extra3': '#33aaff',
-                'extra4': '#ffaa33'
-            }
-        },
-        assets={
-            'logo': {'url': None},
-            'avatar': {'url': 'https://r0gr.de/roger-avatar.jpg'},
-            'favicon': {'url': 'https://r0gr.de/favicon.ico'}
-        },
-        menu={'style': 'horizontal', 'position': 'top'}
-    )
-}
 
-
-def get_fallback_template(family: str) -> TemplateConfig:
-    """Get a fallback template when DB is unavailable."""
-    return DEFAULT_TEMPLATES.get(family, DEFAULT_TEMPLATES['agentworx'])
 
 
 # ──────────────────────────────────────────────
@@ -1266,7 +987,7 @@ def _fetch_template_from_db(template_key: str, version: int) -> Optional[Templat
         conn = _get_db_connection()
         with conn.cursor() as cur:
             cur.execute("""
-                SELECT template_key, version, name, family,
+                SELECT template_key, version, name,
                        tokens, assets, menu, metadata
                 FROM ui.templates
                 WHERE template_key = %s AND version = %s
@@ -1278,7 +999,6 @@ def _fetch_template_from_db(template_key: str, version: int) -> Optional[Templat
                 template_key=row['template_key'],
                 version=row['version'],
                 name=row['name'],
-                family=row['family'],
                 tokens=row['tokens'] or {},
                 assets=row['assets'] or {},
                 menu=row['menu'] or {},
@@ -1296,7 +1016,7 @@ def _fetch_template_by_name_from_db(name: str) -> Optional[TemplateConfig]:
         conn = _get_db_connection()
         with conn.cursor() as cur:
             cur.execute("""
-                SELECT template_key, version, name, family,
+                SELECT template_key, version, name,
                        tokens, assets, menu, metadata
                 FROM ui.templates
                 WHERE name = %s
@@ -1310,7 +1030,6 @@ def _fetch_template_by_name_from_db(name: str) -> Optional[TemplateConfig]:
                 template_key=row['template_key'],
                 version=row['version'],
                 name=row['name'],
-                family=row['family'],
                 tokens=row['tokens'] or {},
                 assets=row['assets'] or {},
                 menu=row['menu'] or {},
@@ -1640,7 +1359,6 @@ class TemplateManager:
             "template_key": config.template_key,
             "version": config.version,
             "name": config.name,
-            "family": config.family,
             "tokens": config.tokens,
             "assets": config.assets,
             "menu": config.menu,
