@@ -360,8 +360,8 @@ class TestTemplateCache:
         config = TemplateConfig(
             template_key='test', version=1, name='Test', 
         )
-        cache.set('audit-viewer:production', config)
-        retrieved = cache.get('audit-viewer:production')
+        cache.set('agentworx-console:production', config)
+        retrieved = cache.get('agentworx-console:production')
         assert retrieved is not None
         assert retrieved.template_key == 'test'
 

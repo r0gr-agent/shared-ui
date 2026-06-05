@@ -264,20 +264,20 @@ class TestSeedData:
                 rows = cur.fetchall()
                 apps = {row['app_key'] for row in rows}
                 
-                expected = {'audit-viewer', 'agentworx-content', 'console-hub', 'fitness-dashboard'}
+                expected = {'agentworx-console', 'agentworx-content-plan', 'agentworx-hub', 'agentworx-fitness-dashboard'}
                 assert apps == expected, f"Missing apps: {expected - apps}"
         finally:
             conn.close()
 
-    def test_audit_viewer_assignment(self):
-        """audit-viewer should be assigned to agentworx template."""
+    def test_agentworx_console_assignment(self):
+        """agentworx-console should be assigned to agentworx template."""
         conn = get_db_connection()
         try:
             with conn.cursor() as cur:
                 cur.execute("""
                     SELECT template_key, version
                     FROM ui.assignments
-                    WHERE app_key = 'audit-viewer' AND active = TRUE
+                    WHERE app_key = 'agentworx-console' AND active = TRUE
                 """)
                 result = cur.fetchone()
                 assert result is not None
@@ -286,15 +286,15 @@ class TestSeedData:
         finally:
             conn.close()
 
-    def test_console_hub_assignment(self):
-        """console-hub should be assigned to r0gr template."""
+    def test_agentworx_hub_assignment(self):
+        """agentworx-hub should be assigned to r0gr template."""
         conn = get_db_connection()
         try:
             with conn.cursor() as cur:
                 cur.execute("""
                     SELECT template_key, version
                     FROM ui.assignments
-                    WHERE app_key = 'console-hub' AND active = TRUE
+                    WHERE app_key = 'agentworx-hub' AND active = TRUE
                 """)
                 result = cur.fetchone()
                 assert result is not None
